@@ -7,13 +7,23 @@ use table_extract::{
 };
 use time::{Time, Weekday};
 
+mod faculties;
+use faculties::Study;
+
+const URL_FACULTIES: &str =
+	"https://stundenplan.htwk-leipzig.de/stundenplan/xml/public/semgrp_ss.xml";
 const URL: &str = "https://stundenplan.htwk-leipzig.de/ws/Berichte/Text-Listen;Studenten-Sets;name;23INB-3?template=sws_semgrp&weeks=1-65";
 
 #[tokio::main]
 async fn main() -> eyre::Result<()> {
-	let res = reqwest::get(URL).await?;
-	let text = res.text().await?;
-	let html = Html::parse_document(&text);
+	let faculties_text = reqwest::get(URL_FACULTIES).await?.text().await?;
+	let study: Study = quick_xml::de::from_str(&faculties_text)?;
+	let faculties = study.faculties;
+
+	println!("{faculties:?}");
+
+	let html_text = reqwest::get(URL).await?.text().await?;
+	let html = Html::parse_document(&html_text);
 
 	for day in html.select(&Selector::parse("p > span.labelone").unwrap()) {
 		let siblings = day.parent().unwrap().next_siblings();

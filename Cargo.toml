@@ -7,7 +7,9 @@ edition = "2021"
 
 [dependencies]
 eyre = "0.6.8"
+quick-xml = { version = "0.30.0", features = ["async-tokio", "serde", "serialize"] }
 reqwest = "0.11.20"
+serde = { version = "1.0.188", features = ["derive"] }
 table-extract = { git = "https://github.com/CreatorSiSo/table-extract.git", rev = "9ee22f66205607757be7b27559de83eb986069cf" }
 time = "0.3.29"
 tokio = { version = "1.32.0", features = ["full"] }

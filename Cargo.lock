@@ -422,7 +422,9 @@ name = "htwk-calendar"
 version = "0.1.0"
 dependencies = [
  "eyre",
+ "quick-xml",
  "reqwest",
+ "serde",
  "table-extract",
  "time",
  "tokio",
@@ -837,6 +839,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3d433d9f1a3e8c1263d9456598b16fec66f4acc9a74dacffd35c7bb09b3a1328"
 dependencies = [
  "unicode-ident",
+]
+
+[[package]]
+name = "quick-xml"
+version = "0.30.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "eff6510e86862b57b210fd8cbe8ed3f0d7d600b9c2863cd4549a2e033c66e956"
+dependencies = [
+ "memchr",
+ "serde",
+ "tokio",
 ]
 
 [[package]]
