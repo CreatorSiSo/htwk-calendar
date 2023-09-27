@@ -14,47 +14,61 @@ use crate::faculties::Subject;
 
 const URL_FACULTIES: &str =
 	"https://stundenplan.htwk-leipzig.de/stundenplan/xml/public/semgrp_ss.xml";
-const URL: &str = "https://stundenplan.htwk-leipzig.de/ws/Berichte/Text-Listen;Studenten-Sets;name;23INB-3?template=sws_semgrp&weeks=1-65";
+const URL_TEMPLATE: &str = "https://stundenplan.htwk-leipzig.de/ws/Berichte/Text-Listen;Studenten-Sets;name;{$group$}?template=sws_semgrp&weeks=1-65";
 
 #[tokio::main]
 async fn main() -> eyre::Result<()> {
 	let faculties = get_faculties().await?;
 	println!("{faculties:#?}");
 
-	let html_text = reqwest::get(URL).await?.text().await?;
-	let html = Html::parse_document(&html_text);
+	let subject = "23INB-3";
+	let url = URL_TEMPLATE.replace("{$group$}", subject);
 
-	for day in html.select(&Selector::parse("p > span.labelone").unwrap()) {
-		let siblings = day.parent().unwrap().next_siblings();
-		let table_element = siblings.skip(1).next().unwrap();
-		let table = Table::new(ElementRef::wrap(table_element).unwrap());
-
-		for row in table.iter().skip(1) {
-			let row = row.as_slice();
-
-			let event = Event {
-				name: row[3].clone(),
-				notes: row[7].clone(),
-				week_day: match day.text().collect::<String>().as_str() {
-					"Montag" => Weekday::Monday,
-					"Dienstag" => Weekday::Tuesday,
-					"Mittwoch" => Weekday::Wednesday,
-					"Donnerstag" => Weekday::Thursday,
-					"Freitag" => Weekday::Friday,
-					"Samstag" => Weekday::Saturday,
-					"Sonntag" => Weekday::Sunday,
-					_ => panic!(),
-				},
-				weeks: row[0].parse()?,
-				start: parse_time(&row[1])?,
-				end: parse_time(&row[2])?,
-			};
-
-			println!("{event:?}")
-		}
-	}
+	let events = scrape_events(&url).await?;
+	println!("{events:#?}");
 
 	Ok(())
+}
+
+async fn scrape_events(url: &str) -> eyre::Result<Vec<Event>> {
+	let html_text = reqwest::get(url).await?.text().await?;
+	let html = Html::parse_document(&html_text);
+
+	Ok(html
+		.select(&Selector::parse("p > span.labelone").unwrap())
+		.into_iter()
+		.flat_map(|day| {
+			let siblings = day.parent().unwrap().next_siblings();
+			let table_element = siblings.skip(1).next().unwrap();
+			let table = Table::new(ElementRef::wrap(table_element).unwrap());
+
+			table
+				.iter()
+				.skip(1)
+				.map(|row| {
+					let row = row.as_slice();
+
+					Event {
+						name: row[3].clone(),
+						notes: row[7].clone(),
+						week_day: match day.text().collect::<String>().as_str() {
+							"Montag" => Weekday::Monday,
+							"Dienstag" => Weekday::Tuesday,
+							"Mittwoch" => Weekday::Wednesday,
+							"Donnerstag" => Weekday::Thursday,
+							"Freitag" => Weekday::Friday,
+							"Samstag" => Weekday::Saturday,
+							"Sonntag" => Weekday::Sunday,
+							_ => panic!(),
+						},
+						weeks: row[0].parse().unwrap(),
+						start: parse_time(&row[1]).unwrap(),
+						end: parse_time(&row[2]).unwrap(),
+					}
+				})
+				.collect::<Vec<Event>>()
+		})
+		.collect())
 }
 
 async fn get_faculties() -> eyre::Result<Vec<Faculty>> {
