@@ -1,4 +1,4 @@
-#![feature(iterator_try_collect)]
+#![feature(iterator_try_collect, iterator_try_reduce)]
 
 use std::str::FromStr;
 use table_extract::{
@@ -8,9 +8,7 @@ use table_extract::{
 use time::{Time, Weekday};
 
 mod faculties;
-use faculties::{Faculty, Group, Study};
-
-use crate::faculties::Subject;
+use faculties::*;
 
 const URL_FACULTIES: &str =
 	"https://stundenplan.htwk-leipzig.de/stundenplan/xml/public/semgrp_ss.xml";
@@ -37,7 +35,7 @@ async fn scrape_events(url: &str) -> eyre::Result<Vec<Event>> {
 	Ok(html
 		.select(&Selector::parse("p > span.labelone").unwrap())
 		.into_iter()
-		.flat_map(|day| {
+		.map(|day| {
 			let siblings = day.parent().unwrap().next_siblings();
 			let table_element = siblings.skip(1).next().unwrap();
 			let table = Table::new(ElementRef::wrap(table_element).unwrap());
@@ -45,10 +43,9 @@ async fn scrape_events(url: &str) -> eyre::Result<Vec<Event>> {
 			table
 				.iter()
 				.skip(1)
-				.map(|row| {
+				.map(|row| -> eyre::Result<Event> {
 					let row = row.as_slice();
-
-					Event {
+					let event = Event {
 						name: row[3].clone(),
 						notes: row[7].clone(),
 						week_day: match day.text().collect::<String>().as_str() {
@@ -61,13 +58,16 @@ async fn scrape_events(url: &str) -> eyre::Result<Vec<Event>> {
 							"Sonntag" => Weekday::Sunday,
 							_ => panic!(),
 						},
-						weeks: row[0].parse().unwrap(),
-						start: parse_time(&row[1]).unwrap(),
-						end: parse_time(&row[2]).unwrap(),
-					}
+						weeks: row[0].parse()?,
+						start: parse_time(&row[1])?,
+						end: parse_time(&row[2])?,
+					};
+					Ok(event)
 				})
-				.collect::<Vec<Event>>()
+				.try_collect::<Vec<Event>>()
 		})
+		.map(|result| result.unwrap())
+		.flatten()
 		.collect())
 }
 
