@@ -8,7 +8,9 @@ use table_extract::{
 use time::{Time, Weekday};
 
 mod faculties;
-use faculties::Study;
+use faculties::{Faculty, Group, Study};
+
+use crate::faculties::Subject;
 
 const URL_FACULTIES: &str =
 	"https://stundenplan.htwk-leipzig.de/stundenplan/xml/public/semgrp_ss.xml";
@@ -16,11 +18,8 @@ const URL: &str = "https://stundenplan.htwk-leipzig.de/ws/Berichte/Text-Listen;S
 
 #[tokio::main]
 async fn main() -> eyre::Result<()> {
-	let faculties_text = reqwest::get(URL_FACULTIES).await?.text().await?;
-	let study: Study = quick_xml::de::from_str(&faculties_text)?;
-	let faculties = study.faculties;
-
-	println!("{faculties:?}");
+	let faculties = get_faculties().await?;
+	println!("{faculties:#?}");
 
 	let html_text = reqwest::get(URL).await?.text().await?;
 	let html = Html::parse_document(&html_text);
@@ -56,6 +55,73 @@ async fn main() -> eyre::Result<()> {
 	}
 
 	Ok(())
+}
+
+async fn get_faculties() -> eyre::Result<Vec<Faculty>> {
+	let faculties_text = reqwest::get(URL_FACULTIES).await?.text().await?;
+	let faculties = quick_xml::de::from_str::<Study>(&faculties_text)?.faculties;
+
+	let extensions = vec![Faculty {
+		id: "FIMN".into(),
+		name: "Fakultät Informatik und Medien LFB Informatik".into(),
+		subjects: vec![
+			Subject {
+				id: "INB".into(),
+				name: "Informatik (Bachelor of Science)".into(),
+				groups: vec![
+					Group {
+						id: "23INB-1".into(),
+					},
+					Group {
+						id: "23INB-2".into(),
+					},
+					Group {
+						id: "23INB-3".into(),
+					},
+				],
+			},
+			Subject {
+				id: "MIB".into(),
+				name: "Medieninformatik (Bachelor of Science)".into(),
+				groups: vec![
+					Group {
+						id: "23MIB-1".into(),
+					},
+					Group {
+						id: "23MIB-2".into(),
+					},
+				],
+			},
+		],
+	}];
+
+	let faculties: Vec<_> = faculties
+		.into_iter()
+		.map(|mut faculty| {
+			let Some(extension) = extensions
+				.iter()
+				.find(|extension| &extension.id == &faculty.id)
+			else {
+				return faculty;
+			};
+
+			for subject in &mut faculty.subjects {
+				let Some(extension_subject) = extension
+					.subjects
+					.iter()
+					.find(|extension_subject| *extension_subject == subject)
+				else {
+					continue;
+				};
+
+				subject.groups.append(&mut extension_subject.groups.clone());
+			}
+
+			faculty
+		})
+		.collect();
+
+	Ok(faculties)
 }
 
 #[derive(Debug)]
