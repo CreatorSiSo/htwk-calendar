@@ -8,15 +8,16 @@ use table_extract::Table;
 use time::format_description::well_known::Iso8601;
 use time::{Date, PrimitiveDateTime, Time, Weekday};
 
-#[derive(Debug, serde::Serialize)]
+#[derive(Debug, Clone, serde::Serialize)]
 pub struct Event {
 	pub title: String,
 	pub notes: String,
-	pub start: String,
-	pub end: String,
 	pub kind: EventKind,
 	pub kind_display: String,
+	pub rooms: Vec<String>,
 	pub color: String,
+	pub start: String,
+	pub end: String,
 }
 
 pub async fn events(url: &str) -> eyre::Result<Vec<Event>> {
@@ -48,53 +49,32 @@ pub async fn events(url: &str) -> eyre::Result<Vec<Event>> {
 				Event {
 					title: event.title.clone(),
 					notes: event.notes.clone(),
+					kind: event.kind,
+					kind_display: event.kind.to_string(),
+					rooms: event.rooms.clone(),
 					start: PrimitiveDateTime::new(date, event.start)
 						.format(&Iso8601::DATE_TIME)
 						.unwrap(),
 					end: PrimitiveDateTime::new(date, event.end)
 						.format(&Iso8601::DATE_TIME)
 						.unwrap(),
-					kind: event.kind,
-					kind_display: event.kind.to_string(),
-					color: match event.kind {
-						EventKind::Vorlesung => "blue",
-						EventKind::VorlesungPflicht => "blue",
-						EventKind::VorlesungWahlpflicht => "blue",
-
-						EventKind::Seminar => "green",
-						EventKind::SeminarPflicht => "green",
-						EventKind::SeminarWahlpflicht => "green",
-
-						EventKind::Praktikum => "orange",
-						EventKind::PraktikumPflicht => "orange",
-						EventKind::PraktikumWahlpflicht => "orange",
-
-						EventKind::Zusatzveranstaltung => "red",
-						EventKind::FakultativeVeranstaltung => "red",
-						EventKind::Tutorium => "red",
-						EventKind::Pflicht => "red",
-						EventKind::Wahlpflicht => "red",
-
-						EventKind::Gebucht => "gray",
-						EventKind::Sperr => "gray",
-						EventKind::Unknown => "gray",
-					}
-					.into(),
+					color: event.kind.color().into(),
 				}
 			})
 		})
 		.collect::<Vec<_>>())
 }
 
-#[derive(Debug, serde::Serialize)]
+#[derive(Debug, Clone, serde::Serialize)]
 pub struct RawEvent {
 	pub title: String,
 	pub notes: String,
+	pub kind: EventKind,
+	pub rooms: Vec<String>,
 	pub weekday: Weekday,
 	pub weeks: Weeks,
 	pub start: Time,
 	pub end: Time,
-	pub kind: EventKind,
 }
 
 #[derive(Debug, Clone, Copy, serde_repr::Serialize_repr)]
@@ -121,6 +101,35 @@ pub enum EventKind {
 	Gebucht,
 	Sperr,
 	Unknown,
+}
+
+impl EventKind {
+	fn color(self) -> &'static str {
+		match self {
+			EventKind::Vorlesung => "#275BB6",
+			EventKind::VorlesungPflicht => "#275BB6",
+			EventKind::VorlesungWahlpflicht => "#275BB6",
+
+			EventKind::Seminar => "#00787D",
+			EventKind::SeminarPflicht => "#00787D",
+			EventKind::SeminarWahlpflicht => "#00787D",
+
+			EventKind::Praktikum => "#FF8863",
+			EventKind::PraktikumPflicht => "#FF8863", // 008800
+			EventKind::PraktikumWahlpflicht => "#FF8863",
+
+			EventKind::Zusatzveranstaltung => "#E7004F",
+			EventKind::FakultativeVeranstaltung => "#E7004F",
+			EventKind::Tutorium => "#E7004F",
+
+			EventKind::Pflicht => "#FD0049",
+			EventKind::Wahlpflicht => "#FD0049",
+
+			EventKind::Gebucht => "#575757",
+			EventKind::Sperr => "#575757",
+			EventKind::Unknown => "#575757",
+		}
+	}
 }
 
 impl Display for EventKind {
@@ -195,6 +204,11 @@ pub async fn raw_events(url: &str) -> eyre::Result<Vec<RawEvent>> {
 
 							_ => EventKind::Unknown,
 						},
+						rooms: unescape(&row[6])
+							.trim()
+							.split_whitespace()
+							.map(Into::into)
+							.collect(),
 						weekday: match day.text().collect::<String>().as_str() {
 							"Montag" => Weekday::Monday,
 							"Dienstag" => Weekday::Tuesday,
@@ -223,7 +237,7 @@ fn parse_time(string: &str) -> eyre::Result<Time> {
 	Ok(Time::from_hms(hour.parse()?, minute.parse()?, 0)?)
 }
 
-#[derive(Debug, serde::Serialize)]
+#[derive(Debug, Clone, serde::Serialize)]
 pub enum Weeks {
 	Single(u32),
 	Multiple(Vec<u32>),

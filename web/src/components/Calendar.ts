@@ -20,7 +20,9 @@ function formatTwoDigits(number: number): string {
 }
 
 export function setupCalendar() {
-  const group = window.location.pathname.substring(1).split("/")[0];
+  // const group =
+  //   window.location.pathname.substring(1).split("/")[0];
+  const group = "23INB-3";
 
   const calendar_el = document.getElementById("calendar") as HTMLElement;
   const popover_el = document.getElementById("popover") as HTMLDivElement;
@@ -29,13 +31,15 @@ export function setupCalendar() {
     popover_el.classList.remove("hidden");
 
     const title_el = popover_el.querySelector("#title") as HTMLDivElement;
-    const kind_el = popover_el.querySelector("#kind") as HTMLDivElement;
     const desc_el = popover_el.querySelector("#descr") as HTMLDivElement;
+    const rooms_el = popover_el.querySelector("#rooms") as HTMLDivElement;
+    const kind_el = popover_el.querySelector("#kind") as HTMLDivElement;
     const time_el = popover_el.querySelector("#time") as HTMLDivElement;
 
     title_el.textContent = title;
+    desc_el.textContent = extendedProps.notes ?? "";
+    rooms_el.textContent = (extendedProps.rooms ?? []).join(", ");
     kind_el.textContent = extendedProps.kind_display ?? "Unbekannter Event Typ";
-    desc_el.textContent = extendedProps.description ?? "";
 
     const startString = start
       ? `${formatTwoDigits(start.getHours())}:${formatTwoDigits(
@@ -55,9 +59,13 @@ export function setupCalendar() {
     cleanupPopover();
   }
 
+  popover_el
+    .querySelector("#close_btn")
+    ?.addEventListener("click", () => hidePopover());
+
   const calendar = new Calendar(calendar_el, {
     plugins: [dayGridMonth, timeGridPlugin, multiMonthPlugin],
-    initialView: "dayGridMonth",
+    initialView: "timeGridWeek",
     headerToolbar: {
       left: "multiMonthYear,dayGridMonth,timeGridWeek,timeGridDay",
       center: "title",
@@ -68,7 +76,7 @@ export function setupCalendar() {
     eventSources: [
       {
         url: `http://localhost:5000/events/${group}`,
-        extraParams: ["notes", "type", "type_display"],
+        extraParams: ["notes", "type", "type_display", "rooms"],
       },
     ],
     eventClick: function ({ event, el }) {

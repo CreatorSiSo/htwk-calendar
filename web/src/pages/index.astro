@@ -1,56 +1,25 @@
 ---
 import Layout from "../layouts/Layout.astro";
-
-type Event = {
-  name: string;
-  notes: string;
-  weekday: Weekday;
-  weeks:
-    | { Single: number }
-    | { Multiple: Array<number> }
-    | { Range: { start: number; end: number } };
-  start: [number, number, number, number];
-  end: [number, number, number, number];
-};
-
-enum Weekday {
-  Monday = 1,
-  Tuesday,
-  Wednesday,
-  Thursday,
-  Friday,
-  Saturday,
-  Sunday,
-}
-
-const res = await fetch("http://localhost:5000/events/23INB-3");
-const events: Array<Event> = await res.json();
-
-const events_on_days: Map<Weekday, Event[]> = new Map([
-  [Weekday.Monday, []],
-  [Weekday.Tuesday, []],
-  [Weekday.Wednesday, []],
-  [Weekday.Thursday, []],
-  [Weekday.Friday, []],
-  [Weekday.Saturday, []],
-  [Weekday.Sunday, []],
-]);
-for (const event of events) {
-  events_on_days.get(event.weekday)?.push(event);
-}
 ---
 
 <Layout title="HTWK Stundenplan">
   <main class="h-full">
     <div id="calendar" class="relative h-full max-h-full"></div>
     <div
-      class="z-50 max-w-sm top-0 left-0 px-4 py-3 absolute hidden shadow-md rounded-md bg-white"
+      class="z-50 max-w-sm top-0 left-0 px-4 py-3 absolute hidden shadow-md rounded-md bg-white text-sm"
       id="popover"
     >
-      <div id="title" class="font-bold">Title</div>
-      <div id="kind">Description</div>
+      <div class="flex gap-2 justify-between">
+        <span id="title" class="font-bold">Title</span>
+        <button id="close_btn" class="w-5 h-5">✕</button>
+      </div>
       <div id="descr"></div>
-      <div id="time"></div>
+
+      <div class="pt-2">
+        <div id="rooms"></div>
+        <div id="kind"></div>
+        <div id="time"></div>
+      </div>
     </div>
   </main>
 
