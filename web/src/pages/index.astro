@@ -42,29 +42,15 @@ for (const event of events) {
 
 <Layout title="HTWK Stundenplan">
   <main class="h-full">
-    <!-- <div class="flex flex-col h-80">
-      <div class="flex">
-        <span class="flex-1">Montag</span>
-        <span class="flex-1">Dienstag</span>
-        <span class="flex-1">Mittwoch</span>
-        <span class="flex-1">Donnerstag</span>
-        <span class="flex-1">Freitag</span>
-        <span class="flex-1">Samstag</span>
-        <span class="flex-1">Sonntag</span>
-      </div>
-      <div class="flex">
-        {
-          Array.from(events_on_days.entries()).map(([weekday, events]) => (
-            <div class="flex-1 flex flex-col">
-              {events.map((event) => (
-                <span>{`${event.start[0]}:${event.start[1]} - ${event.end[0]}:${event.end[1]}`}</span>
-              ))}
-            </div>
-          ))
-        }
-      </div>
-    </div> -->
-    <div id="calendar" class="max-h-full"></div>
+    <div id="calendar" class="relative h-full max-h-full"></div>
+    <div
+      class="z-50 max-w-sm top-0 left-0 px-4 py-3 absolute hidden shadow-md rounded-md bg-white"
+      id="popover"
+    >
+      <div id="title" class="font-bold">Title</div>
+      <div id="descr">Description</div>
+      <div id="time">00:00 - 23:59</div>
+    </div>
   </main>
 
   <script>

@@ -3,6 +3,7 @@
 use axum::{extract::Path, Json, Router};
 use color_eyre::eyre;
 use std::net::SocketAddr;
+use time::format_description::well_known::Iso8601;
 use tower_http::trace::TraceLayer;
 use tracing::Level;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
@@ -39,6 +40,10 @@ async fn main() -> eyre::Result<()> {
 
 	let routes = Router::new()
 		.route("/events/:group", axum::routing::get(events_of_group))
+		.route(
+			"/raw_events/:group",
+			axum::routing::get(raw_events_of_group),
+		)
 		.layer(TraceLayer::new_for_http());
 
 	let addr = SocketAddr::from(([0, 0, 0, 0], 5000));
@@ -50,13 +55,44 @@ async fn main() -> eyre::Result<()> {
 	Ok(())
 }
 
+#[derive(Debug, serde::Serialize)]
+struct TmpEvent {
+	title: String,
+	notes: String,
+	start: String,
+	end: String,
+}
+
 #[axum::debug_handler]
-async fn events_of_group(Path(group): Path<String>) -> Result<Json<Vec<Event>>, String> {
+async fn events_of_group(Path(group): Path<String>) -> Result<Json<Vec<TmpEvent>>, String> {
 	let url = URL_TEMPLATE.replace("{$group$}", &group);
 	let events = scrape::events(&url).await.map_err(|err| {
 		format!("Unable to scrape timetable for {group}.\n\nInternal error: {err}")
 	})?;
 
-	tracing::debug!("{events:#?}");
-	Ok(Json(events))
+	let events = events.into_iter().map(
+		|Event {
+		     title,
+		     notes,
+		     start,
+		     end,
+		 }| TmpEvent {
+			title,
+			notes,
+			start: start.format(&Iso8601::DATE_TIME).unwrap(),
+			end: end.format(&Iso8601::DATE_TIME).unwrap(),
+		},
+	);
+
+	Ok(Json(events.collect()))
+}
+
+#[axum::debug_handler]
+async fn raw_events_of_group(Path(group): Path<String>) -> Result<Json<Vec<Event>>, String> {
+	let url = URL_TEMPLATE.replace("{$group$}", &group);
+	let raw_events = scrape::events(&url).await.map_err(|err| {
+		format!("Unable to scrape timetable for {group}.\n\nInternal error: {err}")
+	})?;
+
+	Ok(Json(raw_events))
 }

@@ -4,9 +4,64 @@ use table_extract::{
 	scraper::{ElementRef, Html, Selector},
 	Table,
 };
-use time::{Time, Weekday};
+use time::{Date, PrimitiveDateTime, Time, Weekday};
+
+#[derive(Debug, serde::Serialize)]
+pub struct Event {
+	pub title: String,
+	pub notes: String,
+	pub start: PrimitiveDateTime,
+	pub end: PrimitiveDateTime,
+}
 
 pub async fn events(url: &str) -> eyre::Result<Vec<Event>> {
+	let raw_events = raw_events(url).await?;
+
+	Ok(raw_events
+		.into_iter()
+		.flat_map(|event| {
+			match event.weeks {
+				Weeks::Single(week) => vec![week],
+				Weeks::Multiple(weeks) => weeks,
+				Weeks::Range { start, end } => (start..=end).collect(),
+			}
+			.into_iter()
+			.map(move |week| {
+				let year_offset = week / 52;
+				let week = match week % 52 {
+					0 => 52,
+					week => week,
+				};
+
+				let date = Date::from_iso_week_date(
+					(2023 + year_offset) as i32,
+					week as u8,
+					event.weekday,
+				)
+				.unwrap();
+
+				Event {
+					title: event.title.clone(),
+					notes: event.notes.clone(),
+					start: PrimitiveDateTime::new(date, event.start),
+					end: PrimitiveDateTime::new(date, event.end),
+				}
+			})
+		})
+		.collect::<Vec<_>>())
+}
+
+#[derive(Debug, serde::Serialize)]
+pub struct RawEvent {
+	pub title: String,
+	pub notes: String,
+	pub weekday: Weekday,
+	pub weeks: Weeks,
+	pub start: Time,
+	pub end: Time,
+}
+
+pub async fn raw_events(url: &str) -> eyre::Result<Vec<RawEvent>> {
 	let html_text = reqwest::get(url).await?.text().await?;
 	let html = Html::parse_document(&html_text);
 
@@ -21,10 +76,10 @@ pub async fn events(url: &str) -> eyre::Result<Vec<Event>> {
 			table
 				.iter()
 				.skip(1)
-				.map(|row| -> eyre::Result<Event> {
+				.map(|row| -> eyre::Result<RawEvent> {
 					let row = row.as_slice();
-					let event = Event {
-						name: row[3].clone(),
+					let event = RawEvent {
+						title: row[3].clone(),
 						notes: row[7].clone(),
 						weekday: match day.text().collect::<String>().as_str() {
 							"Montag" => Weekday::Monday,
@@ -42,21 +97,11 @@ pub async fn events(url: &str) -> eyre::Result<Vec<Event>> {
 					};
 					Ok(event)
 				})
-				.try_collect::<Vec<Event>>()
+				.try_collect::<Vec<RawEvent>>()
 		})
 		.map(|result| result.unwrap())
 		.flatten()
 		.collect())
-}
-
-#[derive(Debug, serde::Serialize)]
-pub struct Event {
-	pub name: String,
-	pub notes: String,
-	pub weekday: Weekday,
-	pub weeks: Weeks,
-	pub start: Time,
-	pub end: Time,
 }
 
 fn parse_time(string: &str) -> eyre::Result<Time> {
