@@ -2,6 +2,7 @@ use std::fmt::Display;
 
 use crate::faculties::*;
 use color_eyre::eyre;
+use htmlize::unescape;
 use table_extract::scraper::{ElementRef, Html, Selector};
 use table_extract::Table;
 use time::format_description::well_known::Iso8601;
@@ -166,9 +167,10 @@ pub async fn raw_events(url: &str) -> eyre::Result<Vec<RawEvent>> {
 				.skip(1)
 				.map(|row| -> eyre::Result<RawEvent> {
 					let row = row.as_slice();
+
 					let event = RawEvent {
-						title: row[3].clone(),
-						notes: row[7].clone(),
+						title: unescape(&row[3]).trim().into(),
+						notes: unescape(&row[7]).trim().into(),
 						kind: match row[4].to_lowercase().as_str() {
 							"v" => EventKind::Vorlesung,
 							"vp" => EventKind::VorlesungPflicht,
