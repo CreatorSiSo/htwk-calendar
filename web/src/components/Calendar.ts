@@ -1,4 +1,4 @@
-import { Calendar } from "@fullcalendar/core";
+import { Calendar, type EventApi } from "@fullcalendar/core";
 import dayGridMonth from "@fullcalendar/daygrid";
 import multiMonthPlugin from "@fullcalendar/multimonth";
 import timeGridPlugin from "@fullcalendar/timegrid";
@@ -19,24 +19,23 @@ function formatTwoDigits(number: number): string {
   }
 }
 
-document.addEventListener("DOMContentLoaded", function () {
+export function setupCalendar() {
+  const group = window.location.pathname.substring(1).split("/")[0];
+
   const calendar_el = document.getElementById("calendar") as HTMLElement;
   const popover_el = document.getElementById("popover") as HTMLDivElement;
 
-  function showPopover(
-    title: string,
-    description: string,
-    start?: Date,
-    end?: Date,
-  ) {
+  function showPopover({ title, start, end, extendedProps }: EventApi) {
     popover_el.classList.remove("hidden");
 
     const title_el = popover_el.querySelector("#title") as HTMLDivElement;
+    const kind_el = popover_el.querySelector("#kind") as HTMLDivElement;
     const desc_el = popover_el.querySelector("#descr") as HTMLDivElement;
     const time_el = popover_el.querySelector("#time") as HTMLDivElement;
 
     title_el.textContent = title;
-    desc_el.textContent = description;
+    kind_el.textContent = extendedProps.kind_display ?? "Unbekannter Event Typ";
+    desc_el.textContent = extendedProps.description ?? "";
 
     const startString = start
       ? `${formatTwoDigits(start.getHours())}:${formatTwoDigits(
@@ -68,21 +67,14 @@ document.addEventListener("DOMContentLoaded", function () {
     locale: "de",
     eventSources: [
       {
-        url: "http://localhost:5000/events/23INB-3",
-        // color: "yellow",
-        // textColor: "black",!
-        extraParams: ["notes"],
+        url: `http://localhost:5000/events/${group}`,
+        extraParams: ["notes", "type", "type_display"],
       },
     ],
     eventClick: function ({ event, el }) {
       cleanupPopover();
       console.log(event.title);
-      showPopover(
-        event.title ?? "",
-        event.extendedProps.notes ?? "",
-        event.start ?? undefined,
-        event.end ?? undefined,
-      );
+      showPopover(event);
 
       cleanupPopover = autoUpdate(el, popover_el, () =>
         computePosition(el, popover_el, {
@@ -134,4 +126,4 @@ document.addEventListener("DOMContentLoaded", function () {
   };
 
   calendar.render();
-});
+}

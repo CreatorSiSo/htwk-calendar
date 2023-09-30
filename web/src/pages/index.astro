@@ -48,12 +48,14 @@ for (const event of events) {
       id="popover"
     >
       <div id="title" class="font-bold">Title</div>
-      <div id="descr">Description</div>
-      <div id="time">00:00 - 23:59</div>
+      <div id="kind">Description</div>
+      <div id="descr"></div>
+      <div id="time"></div>
     </div>
   </main>
 
   <script>
-    import "../components/Calendar.ts";
+    import { setupCalendar } from "../components/Calendar.ts";
+    document.addEventListener("DOMContentLoaded", setupCalendar);
   </script>
 </Layout>

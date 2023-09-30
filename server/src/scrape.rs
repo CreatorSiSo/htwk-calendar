@@ -1,17 +1,21 @@
+use std::fmt::Display;
+
 use crate::faculties::*;
 use color_eyre::eyre;
-use table_extract::{
-	scraper::{ElementRef, Html, Selector},
-	Table,
-};
+use table_extract::scraper::{ElementRef, Html, Selector};
+use table_extract::Table;
+use time::format_description::well_known::Iso8601;
 use time::{Date, PrimitiveDateTime, Time, Weekday};
 
 #[derive(Debug, serde::Serialize)]
 pub struct Event {
 	pub title: String,
 	pub notes: String,
-	pub start: PrimitiveDateTime,
-	pub end: PrimitiveDateTime,
+	pub start: String,
+	pub end: String,
+	pub kind: EventKind,
+	pub kind_display: String,
+	pub color: String,
 }
 
 pub async fn events(url: &str) -> eyre::Result<Vec<Event>> {
@@ -43,8 +47,38 @@ pub async fn events(url: &str) -> eyre::Result<Vec<Event>> {
 				Event {
 					title: event.title.clone(),
 					notes: event.notes.clone(),
-					start: PrimitiveDateTime::new(date, event.start),
-					end: PrimitiveDateTime::new(date, event.end),
+					start: PrimitiveDateTime::new(date, event.start)
+						.format(&Iso8601::DATE_TIME)
+						.unwrap(),
+					end: PrimitiveDateTime::new(date, event.end)
+						.format(&Iso8601::DATE_TIME)
+						.unwrap(),
+					kind: event.kind,
+					kind_display: event.kind.to_string(),
+					color: match event.kind {
+						EventKind::Vorlesung => "blue",
+						EventKind::VorlesungPflicht => "blue",
+						EventKind::VorlesungWahlpflicht => "blue",
+
+						EventKind::Seminar => "green",
+						EventKind::SeminarPflicht => "green",
+						EventKind::SeminarWahlpflicht => "green",
+
+						EventKind::Praktikum => "orange",
+						EventKind::PraktikumPflicht => "orange",
+						EventKind::PraktikumWahlpflicht => "orange",
+
+						EventKind::Zusatzveranstaltung => "red",
+						EventKind::FakultativeVeranstaltung => "red",
+						EventKind::Tutorium => "red",
+						EventKind::Pflicht => "red",
+						EventKind::Wahlpflicht => "red",
+
+						EventKind::Gebucht => "gray",
+						EventKind::Sperr => "gray",
+						EventKind::Unknown => "gray",
+					}
+					.into(),
 				}
 			})
 		})
@@ -59,6 +93,58 @@ pub struct RawEvent {
 	pub weeks: Weeks,
 	pub start: Time,
 	pub end: Time,
+	pub kind: EventKind,
+}
+
+#[derive(Debug, Clone, Copy, serde_repr::Serialize_repr)]
+#[repr(u8)]
+pub enum EventKind {
+	Vorlesung,
+	VorlesungPflicht,
+	VorlesungWahlpflicht,
+
+	Seminar,
+	SeminarPflicht,
+	SeminarWahlpflicht,
+
+	Praktikum,
+	PraktikumPflicht,
+	PraktikumWahlpflicht,
+
+	Zusatzveranstaltung,
+	FakultativeVeranstaltung,
+	Tutorium,
+	Pflicht,
+	Wahlpflicht,
+
+	Gebucht,
+	Sperr,
+	Unknown,
+}
+
+impl Display for EventKind {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		let string = match self {
+			EventKind::Vorlesung => "Vorlesung",
+			EventKind::VorlesungPflicht => "Vorlesung (Pflicht)",
+			EventKind::VorlesungWahlpflicht => "Vorlesung (Wahlpflicht)",
+			EventKind::Seminar => "Seminar",
+			EventKind::SeminarPflicht => "Seminar (Pflicht)",
+			EventKind::SeminarWahlpflicht => "Seminar (Wahlpflicht)",
+			EventKind::Praktikum => "Praktikum",
+			EventKind::PraktikumPflicht => "Praktikum (Pflicht)",
+			EventKind::PraktikumWahlpflicht => "Praktikum (Wahlpflicht)",
+			EventKind::Zusatzveranstaltung => "Zusatzveranstaltung",
+			EventKind::FakultativeVeranstaltung => "fakultative Veranstaltung",
+			EventKind::Tutorium => "Tutorium",
+			EventKind::Pflicht => "Pflicht",
+			EventKind::Wahlpflicht => "Wahlpflicht",
+			EventKind::Gebucht => "Gebucht",
+			EventKind::Sperr => "Sperr",
+			EventKind::Unknown => "Unbekannt",
+		};
+		f.write_str(string)
+	}
 }
 
 pub async fn raw_events(url: &str) -> eyre::Result<Vec<RawEvent>> {
@@ -73,6 +159,8 @@ pub async fn raw_events(url: &str) -> eyre::Result<Vec<RawEvent>> {
 			let table_element = siblings.skip(1).next().unwrap();
 			let table = Table::new(ElementRef::wrap(table_element).unwrap());
 
+			println!("{:?}", table.iter().nth(1).unwrap().as_slice());
+
 			table
 				.iter()
 				.skip(1)
@@ -81,6 +169,30 @@ pub async fn raw_events(url: &str) -> eyre::Result<Vec<RawEvent>> {
 					let event = RawEvent {
 						title: row[3].clone(),
 						notes: row[7].clone(),
+						kind: match row[4].to_lowercase().as_str() {
+							"v" => EventKind::Vorlesung,
+							"vp" => EventKind::VorlesungPflicht,
+							"vw" => EventKind::VorlesungWahlpflicht,
+
+							"s" => EventKind::Seminar,
+							"sp" => EventKind::SeminarPflicht,
+							"sw" => EventKind::SeminarWahlpflicht,
+
+							"p" => EventKind::Praktikum,
+							"pp" => EventKind::PraktikumPflicht,
+							"pw" => EventKind::PraktikumWahlpflicht,
+
+							"zv" => EventKind::Zusatzveranstaltung,
+							"fak" => EventKind::FakultativeVeranstaltung,
+							"tut" => EventKind::Tutorium,
+							"pf" => EventKind::Pflicht,
+							"wpf" => EventKind::Wahlpflicht,
+
+							"gebucht" => EventKind::Gebucht,
+							"sperr" => EventKind::Sperr,
+
+							_ => EventKind::Unknown,
+						},
 						weekday: match day.text().collect::<String>().as_str() {
 							"Montag" => Weekday::Monday,
 							"Dienstag" => Weekday::Tuesday,

@@ -3,7 +3,6 @@
 use axum::{extract::Path, Json, Router};
 use color_eyre::eyre;
 use std::net::SocketAddr;
-use time::format_description::well_known::Iso8601;
 use tower_http::trace::TraceLayer;
 use tracing::Level;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
@@ -14,11 +13,14 @@ use scrape::Event;
 
 const URL_FACULTIES: &str =
 	"https://stundenplan.htwk-leipzig.de/stundenplan/xml/public/semgrp_ss.xml";
-const URL_TEMPLATE: &str = "https://stundenplan.htwk-leipzig.de/ws/Berichte/Text-Listen;Studenten-Sets;name;{$group$}?template=sws_semgrp&weeks=1-65";
+const URL_TEMPLATE: &str = "https://stundenplan.htwk-leipzig.de/ws/Berichte/Text-Listen;Studenten-Sets;name;{$group$}?template=sws_semgrp&weeks=1-100";
 
 #[tokio::main]
 async fn main() -> eyre::Result<()> {
 	color_eyre::install()?;
+
+	// TODO cache events
+	// let events_cache: HashMap<String, Vec<Event>> = HashMap::new();
 
 	{
 		let tracing_layer = tracing_subscriber::fmt::layer();
@@ -36,7 +38,7 @@ async fn main() -> eyre::Result<()> {
 	}
 
 	let faculties = scrape::faculties(URL_FACULTIES).await?;
-	println!("{faculties:#?}");
+	// println!("{faculties:#?}");
 
 	let routes = Router::new()
 		.route("/events/:group", axum::routing::get(events_of_group))
@@ -55,36 +57,15 @@ async fn main() -> eyre::Result<()> {
 	Ok(())
 }
 
-#[derive(Debug, serde::Serialize)]
-struct TmpEvent {
-	title: String,
-	notes: String,
-	start: String,
-	end: String,
-}
-
 #[axum::debug_handler]
-async fn events_of_group(Path(group): Path<String>) -> Result<Json<Vec<TmpEvent>>, String> {
+// TODO iso date range params
+async fn events_of_group(Path(group): Path<String>) -> Result<Json<Vec<Event>>, String> {
 	let url = URL_TEMPLATE.replace("{$group$}", &group);
 	let events = scrape::events(&url).await.map_err(|err| {
 		format!("Unable to scrape timetable for {group}.\n\nInternal error: {err}")
 	})?;
 
-	let events = events.into_iter().map(
-		|Event {
-		     title,
-		     notes,
-		     start,
-		     end,
-		 }| TmpEvent {
-			title,
-			notes,
-			start: start.format(&Iso8601::DATE_TIME).unwrap(),
-			end: end.format(&Iso8601::DATE_TIME).unwrap(),
-		},
-	);
-
-	Ok(Json(events.collect()))
+	Ok(Json(events))
 }
 
 #[axum::debug_handler]
