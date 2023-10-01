@@ -3,7 +3,7 @@
 use axum::{extract::Path, Json, Router};
 use std::net::SocketAddr;
 use tower_http::trace::TraceLayer;
-use tracing::Level;
+use tracing::{debug, info, Level};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 mod faculties;
@@ -21,27 +21,30 @@ const URL_TEMPLATE: &str = "https://stundenplan.htwk-leipzig.de/ws/Berichte/Text
 
 #[tokio::main]
 async fn main() -> color_eyre::Result<()> {
-	color_eyre::install()?;
-	dotenvy::dotenv()?;
-	let config: Config = envy::from_env()?;
-
-	// TODO cache events
-	// let events_cache: HashMap<String, Vec<Event>> = HashMap::new();
-
 	{
-		let tracing_layer = tracing_subscriber::fmt::layer();
+		color_eyre::install()?;
 
 		let filter = tracing_subscriber::filter::Targets::new()
+			.with_target("htwk_calendar", Level::DEBUG)
 			.with_target("tower_http::trace::make_span", Level::DEBUG)
 			.with_target("tower_http::trace::on_response", Level::TRACE)
 			.with_target("tower_http::trace::on_request", Level::TRACE)
 			.with_default(Level::INFO);
 
 		tracing_subscriber::registry()
-			.with(tracing_layer)
+			.with(tracing_subscriber::fmt::layer())
 			.with(filter)
 			.init();
 	}
+
+	match dotenvy::dotenv() {
+		Ok(path) => debug!("Loaded env variables from: {path:?}"),
+		Err(err) => debug!("When searching for .env file: {err}"),
+	}
+	let config: Config = envy::from_env()?;
+
+	// TODO cache events
+	// let events_cache: HashMap<String, Vec<Event>> = HashMap::new();
 
 	let routes = Router::new()
 		.route("/faculties", axum::routing::get(faculties::all))
@@ -53,7 +56,7 @@ async fn main() -> color_eyre::Result<()> {
 		.layer(TraceLayer::new_for_http());
 
 	let addr = SocketAddr::from(([0, 0, 0, 0], config.port));
-	tracing::info!("Listening on {}", addr);
+	info!("Listening on {}", addr);
 	axum::Server::bind(&addr)
 		.serve(routes.into_make_service())
 		.await?;
