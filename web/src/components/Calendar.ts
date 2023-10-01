@@ -19,17 +19,6 @@ function formatTwoDigits(number: number): string {
   }
 }
 
-const groupSelectEl = document.querySelector(
-  "#group_select",
-) as HTMLSelectElement;
-for (const option of groupSelectEl.options) {
-  if (option.value === "23INB-3") option.selected = true;
-}
-const group = "23INB-3";
-
-// const group =
-//   window.location.pathname.substring(1).split("/")[0];
-
 const calendar_el = document.getElementById("calendar") as HTMLElement;
 const popover_el = document.getElementById("popover") as HTMLDivElement;
 
@@ -69,7 +58,8 @@ popover_el
 
 const calendar = new Calendar(calendar_el, {
   plugins: [dayGridMonth, timeGridPlugin, multiMonthPlugin],
-  initialView: "timeGridWeek",
+  height: "100%",
+  initialView: "multiMonthYear",
   headerToolbar: {
     left: "multiMonthYear,dayGridMonth,timeGridWeek,timeGridDay",
     center: "title",
@@ -77,15 +67,27 @@ const calendar = new Calendar(calendar_el, {
   },
   locales: [de],
   locale: "de",
-  eventSources: [
-    {
-      url: `http://localhost:5000/events/${group}`,
-      extraParams: ["notes", "type", "type_display", "rooms"],
-    },
-  ],
   eventClick: function ({ event, el }) {
+    function onElementRemoved(element: Element, callback: () => void) {
+      new MutationObserver(function (mutations, observer) {
+        console.log(document.body.contains(element));
+
+        if (!document.body.contains(element)) {
+          console.log("removed");
+          callback();
+          observer.disconnect();
+        }
+      }).observe(
+        element.parentElement?.parentElement?.parentElement
+          ?.parentElement as Node,
+        {
+          childList: true,
+        },
+      );
+    }
+
+    onElementRemoved(el, () => hidePopover());
     cleanupPopover();
-    console.log(event.title);
     showPopover(event);
 
     cleanupPopover = autoUpdate(el, popover_el, () =>
@@ -137,7 +139,10 @@ calendar.changeView = (...args) => {
   setupView();
 };
 
-groupSelectEl.addEventListener("change", ({ target }) => {
+const groupSelectEl = document.querySelector(
+  "#group_select",
+) as HTMLSelectElement;
+groupSelectEl.addEventListener("change", () => {
   calendar.removeAllEventSources();
   const url = `http://localhost:5000/events/${groupSelectEl.selectedOptions[0].value}`;
   console.log(url);
@@ -146,7 +151,6 @@ groupSelectEl.addEventListener("change", ({ target }) => {
     extraParams: ["notes", "type", "type_display", "rooms"],
   });
   calendar.refetchEvents();
-  calendar.render();
 });
 
 calendar.render();

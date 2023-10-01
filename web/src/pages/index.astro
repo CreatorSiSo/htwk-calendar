@@ -4,10 +4,10 @@ import Layout from "../layouts/Layout.astro";
 ---
 
 <Layout title="HTWK Stundenplan">
-  <main class="h-full">
+  <div class="h-full flex flex-col">
     <GroupSelection client:load />
 
-    <div id="calendar" class="relative h-full max-h-full"></div>
+    <div id="calendar"></div>
     <div
       class="z-50 max-w-sm top-0 left-0 px-4 py-3 absolute hidden shadow-md rounded-md bg-white text-sm"
       id="popover"
@@ -24,8 +24,14 @@ import Layout from "../layouts/Layout.astro";
         <div id="time"></div>
       </div>
     </div>
-  </main>
+  </div>
 </Layout>
+
+<style is:global>
+  .fc-event:hover {
+    cursor: pointer;
+  }
+</style>
 
 <script>
   document.addEventListener("DOMContentLoaded", () =>
