@@ -1,9 +1,34 @@
 ---
 import Layout from "../layouts/Layout.astro";
+import { allFaculties, allSubjects } from "../scripts/faculties.ts";
+
+const subjects = await allSubjects("http://localhost:5000/faculties");
 ---
 
 <Layout title="HTWK Stundenplan">
   <main class="h-full">
+    <div class="p-2 grid grid-cols-[auto_1fr] gap-2 md:flex md:gap-4">
+      <label for="subject_select">Studiengang</label>
+      <select
+        name="subject"
+        id="subject_select"
+        class="w-full px-4 py-2 rounded-md text-white bg-slate-700"
+      >
+        {subjects.map(({ name, id }) => <option id={id}>{name}</option>)}
+      </select>
+
+      <label for="group_select" class="text-center align-middle">
+        Seminargruppe
+      </label>
+      <select
+        name="group"
+        id="group_select"
+        class="w-full px-4 py-2 rounded-md text-white bg-slate-700"
+      >
+        <option selected disabled>Bitte wähle einen Studiengang</option>
+      </select>
+    </div>
+
     <div id="calendar" class="relative h-full max-h-full"></div>
     <div
       class="z-50 max-w-sm top-0 left-0 px-4 py-3 absolute hidden shadow-md rounded-md bg-white text-sm"
@@ -22,9 +47,10 @@ import Layout from "../layouts/Layout.astro";
       </div>
     </div>
   </main>
-
-  <script>
-    import { setupCalendar } from "../components/Calendar.ts";
-    document.addEventListener("DOMContentLoaded", setupCalendar);
-  </script>
 </Layout>
+
+<script>
+  import "../components/Calendar.ts";
+  // document.addEventListener("DOMContentLoaded", () =>
+  // );
+</script>

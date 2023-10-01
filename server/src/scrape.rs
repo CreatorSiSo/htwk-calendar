@@ -1,6 +1,5 @@
 use std::fmt::Display;
 
-use crate::faculties::*;
 use color_eyre::eyre;
 use htmlize::unescape;
 use table_extract::scraper::{ElementRef, Html, Selector};
@@ -157,7 +156,7 @@ impl Display for EventKind {
 	}
 }
 
-pub async fn raw_events(url: &str) -> eyre::Result<Vec<RawEvent>> {
+pub async fn raw_events(url: &str) -> color_eyre::Result<Vec<RawEvent>> {
 	let html_text = reqwest::get(url).await?.text().await?;
 	let html = Html::parse_document(&html_text);
 
@@ -168,8 +167,6 @@ pub async fn raw_events(url: &str) -> eyre::Result<Vec<RawEvent>> {
 			let siblings = day.parent().unwrap().next_siblings();
 			let table_element = siblings.skip(1).next().unwrap();
 			let table = Table::new(ElementRef::wrap(table_element).unwrap());
-
-			println!("{:?}", table.iter().nth(1).unwrap().as_slice());
 
 			table
 				.iter()
@@ -248,89 +245,26 @@ impl std::str::FromStr for Weeks {
 	type Err = std::num::ParseIntError;
 
 	fn from_str(string: &str) -> Result<Self, Self::Err> {
+		if string.contains(',') {
+			return Ok(Weeks::Multiple(
+				string
+					.split(", ")
+					.flat_map(|week_str| match week_str.parse::<Weeks>().unwrap() {
+						Weeks::Single(week) => vec![week],
+						Weeks::Multiple(weeks) => weeks,
+						Weeks::Range { start, end } => (start..=end).collect(),
+					})
+					.collect(),
+			));
+		}
+
 		if let Some((start, end)) = string.split_once("-") {
 			return Ok(Weeks::Range {
-				start: start.parse()?,
-				end: end.parse()?,
+				start: start.parse().map_err(|_| end).unwrap(),
+				end: end.parse().map_err(|_| end).unwrap(),
 			});
 		}
 
-		if !string.contains(',') {
-			return Ok(Weeks::Single(string.parse()?));
-		}
-
-		Ok(Weeks::Multiple(
-			string
-				.split(", ")
-				.map(|week_str| week_str.parse())
-				.try_collect()?,
-		))
+		return Ok(Weeks::Single(string.parse().unwrap()));
 	}
-}
-
-pub async fn faculties(url: &str) -> eyre::Result<Vec<Faculty>> {
-	let faculties_text = reqwest::get(url).await?.text().await?;
-	let faculties = quick_xml::de::from_str::<Study>(&faculties_text)?.faculties;
-
-	let extensions = vec![Faculty {
-		id: "FIMN".into(),
-		name: "Fakultät Informatik und Medien LFB Informatik".into(),
-		subjects: vec![
-			Subject {
-				id: "INB".into(),
-				name: "Informatik (Bachelor of Science)".into(),
-				groups: vec![
-					Group {
-						id: "23INB-1".into(),
-					},
-					Group {
-						id: "23INB-2".into(),
-					},
-					Group {
-						id: "23INB-3".into(),
-					},
-				],
-			},
-			Subject {
-				id: "MIB".into(),
-				name: "Medieninformatik (Bachelor of Science)".into(),
-				groups: vec![
-					Group {
-						id: "23MIB-1".into(),
-					},
-					Group {
-						id: "23MIB-2".into(),
-					},
-				],
-			},
-		],
-	}];
-
-	let faculties: Vec<_> = faculties
-		.into_iter()
-		.map(|mut faculty| {
-			let Some(extension) = extensions
-				.iter()
-				.find(|extension| &extension.id == &faculty.id)
-			else {
-				return faculty;
-			};
-
-			for subject in &mut faculty.subjects {
-				let Some(extension_subject) = extension
-					.subjects
-					.iter()
-					.find(|extension_subject| *extension_subject == subject)
-				else {
-					continue;
-				};
-
-				subject.groups.append(&mut extension_subject.groups.clone());
-			}
-
-			faculty
-		})
-		.collect();
-
-	Ok(faculties)
 }

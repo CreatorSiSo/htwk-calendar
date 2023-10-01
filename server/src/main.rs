@@ -37,10 +37,8 @@ async fn main() -> eyre::Result<()> {
 			.init();
 	}
 
-	let faculties = scrape::faculties(URL_FACULTIES).await?;
-	// println!("{faculties:#?}");
-
 	let routes = Router::new()
+		.route("/faculties", axum::routing::get(faculties::all))
 		.route("/events/:group", axum::routing::get(events_of_group))
 		.route(
 			"/raw_events/:group",

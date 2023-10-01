@@ -19,119 +19,134 @@ function formatTwoDigits(number: number): string {
   }
 }
 
-export function setupCalendar() {
-  // const group =
-  //   window.location.pathname.substring(1).split("/")[0];
-  const group = "23INB-3";
-
-  const calendar_el = document.getElementById("calendar") as HTMLElement;
-  const popover_el = document.getElementById("popover") as HTMLDivElement;
-
-  function showPopover({ title, start, end, extendedProps }: EventApi) {
-    popover_el.classList.remove("hidden");
-
-    const title_el = popover_el.querySelector("#title") as HTMLDivElement;
-    const desc_el = popover_el.querySelector("#descr") as HTMLDivElement;
-    const rooms_el = popover_el.querySelector("#rooms") as HTMLDivElement;
-    const kind_el = popover_el.querySelector("#kind") as HTMLDivElement;
-    const time_el = popover_el.querySelector("#time") as HTMLDivElement;
-
-    title_el.textContent = title;
-    desc_el.textContent = extendedProps.notes ?? "";
-    rooms_el.textContent = (extendedProps.rooms ?? []).join(", ");
-    kind_el.textContent = extendedProps.kind_display ?? "Unbekannter Event Typ";
-
-    const startString = start
-      ? `${formatTwoDigits(start.getHours())}:${formatTwoDigits(
-          start.getMinutes(),
-        )}`
-      : "Unbekannt";
-    const endString = end
-      ? `${formatTwoDigits(end.getHours())}:${formatTwoDigits(
-          end.getMinutes(),
-        )}`
-      : "Unbekannt";
-    time_el.textContent = `${startString} - ${endString}`;
-  }
-  let cleanupPopover: () => void = () => {};
-  function hidePopover() {
-    popover_el.classList.add("hidden");
-    cleanupPopover();
-  }
-
-  popover_el
-    .querySelector("#close_btn")
-    ?.addEventListener("click", () => hidePopover());
-
-  const calendar = new Calendar(calendar_el, {
-    plugins: [dayGridMonth, timeGridPlugin, multiMonthPlugin],
-    initialView: "timeGridWeek",
-    headerToolbar: {
-      left: "multiMonthYear,dayGridMonth,timeGridWeek,timeGridDay",
-      center: "title",
-      right: "today prev,next",
-    },
-    locales: [de],
-    locale: "de",
-    eventSources: [
-      {
-        url: `http://localhost:5000/events/${group}`,
-        extraParams: ["notes", "type", "type_display", "rooms"],
-      },
-    ],
-    eventClick: function ({ event, el }) {
-      cleanupPopover();
-      console.log(event.title);
-      showPopover(event);
-
-      cleanupPopover = autoUpdate(el, popover_el, () =>
-        computePosition(el, popover_el, {
-          placement: "top",
-          middleware: [offset(10), flip(), shift({ padding: 10 })],
-        }).then(({ x, y }) => {
-          Object.assign(popover_el.style, {
-            left: `${x}px`,
-            top: `${y}px`,
-          });
-        }),
-      );
-    },
-    eventContent: ({ event, view }) => {
-      if (view.type === "multiMonthYear") return true;
-
-      return {
-        html: `<div class="flex flex-col box-border h-full max-w-full"><div class="flex-shrink-0 font-semibold truncate">${event.title}</div><div class="truncate">${event.extendedProps.notes}</div></div>`,
-      };
-    },
-  });
-
-  const defaultNext = calendar.next.bind(calendar);
-  calendar.next = () => {
-    hidePopover();
-    defaultNext();
-  };
-
-  const defaultPrev = calendar.prev.bind(calendar);
-  calendar.prev = () => {
-    hidePopover();
-    defaultPrev();
-  };
-
-  function setupView() {
-    const view = document.querySelector(".fc-view") as HTMLElement;
-    view?.addEventListener("", () => true);
-    const classList = view?.classList;
-    classList?.add("relative");
-    classList?.add("overflow-hidden");
-    view?.append(popover_el);
-  }
-
-  const defaultChangeView = calendar.changeView.bind(calendar);
-  calendar.changeView = (...args) => {
-    hidePopover();
-    defaultChangeView(...args);
-    setupView();
-  };
-
-  calendar.render();
+const groupSelectEl = document.querySelector(
+  "#group_select",
+) as HTMLSelectElement;
+for (const option of groupSelectEl.options) {
+  if (option.value === "23INB-3") option.selected = true;
 }
+const group = "23INB-3";
+
+// const group =
+//   window.location.pathname.substring(1).split("/")[0];
+
+const calendar_el = document.getElementById("calendar") as HTMLElement;
+const popover_el = document.getElementById("popover") as HTMLDivElement;
+
+function showPopover({ title, start, end, extendedProps }: EventApi) {
+  popover_el.classList.remove("hidden");
+
+  const title_el = popover_el.querySelector("#title") as HTMLDivElement;
+  const desc_el = popover_el.querySelector("#descr") as HTMLDivElement;
+  const rooms_el = popover_el.querySelector("#rooms") as HTMLDivElement;
+  const kind_el = popover_el.querySelector("#kind") as HTMLDivElement;
+  const time_el = popover_el.querySelector("#time") as HTMLDivElement;
+
+  title_el.textContent = title;
+  desc_el.textContent = extendedProps.notes ?? "";
+  rooms_el.textContent = (extendedProps.rooms ?? []).join(", ");
+  kind_el.textContent = extendedProps.kind_display ?? "Unbekannter Event Typ";
+
+  const startString = start
+    ? `${formatTwoDigits(start.getHours())}:${formatTwoDigits(
+        start.getMinutes(),
+      )}`
+    : "Unbekannt";
+  const endString = end
+    ? `${formatTwoDigits(end.getHours())}:${formatTwoDigits(end.getMinutes())}`
+    : "Unbekannt";
+  time_el.textContent = `${startString} - ${endString}`;
+}
+let cleanupPopover: () => void = () => {};
+function hidePopover() {
+  popover_el.classList.add("hidden");
+  cleanupPopover();
+}
+
+popover_el
+  .querySelector("#close_btn")
+  ?.addEventListener("click", () => hidePopover());
+
+const calendar = new Calendar(calendar_el, {
+  plugins: [dayGridMonth, timeGridPlugin, multiMonthPlugin],
+  initialView: "timeGridWeek",
+  headerToolbar: {
+    left: "multiMonthYear,dayGridMonth,timeGridWeek,timeGridDay",
+    center: "title",
+    right: "today prev,next",
+  },
+  locales: [de],
+  locale: "de",
+  eventSources: [
+    {
+      url: `http://localhost:5000/events/${group}`,
+      extraParams: ["notes", "type", "type_display", "rooms"],
+    },
+  ],
+  eventClick: function ({ event, el }) {
+    cleanupPopover();
+    console.log(event.title);
+    showPopover(event);
+
+    cleanupPopover = autoUpdate(el, popover_el, () =>
+      computePosition(el, popover_el, {
+        placement: "top",
+        middleware: [offset(10), flip(), shift({ padding: 10 })],
+      }).then(({ x, y }) => {
+        Object.assign(popover_el.style, {
+          left: `${x}px`,
+          top: `${y}px`,
+        });
+      }),
+    );
+  },
+  eventContent: ({ event, view }) => {
+    if (view.type === "multiMonthYear") return true;
+
+    return {
+      html: `<div class="flex flex-col box-border h-full max-w-full"><div class="flex-shrink-0 font-semibold truncate">${event.title}</div><div class="truncate">${event.extendedProps.notes}</div></div>`,
+    };
+  },
+});
+
+const defaultNext = calendar.next.bind(calendar);
+calendar.next = () => {
+  hidePopover();
+  defaultNext();
+};
+
+const defaultPrev = calendar.prev.bind(calendar);
+calendar.prev = () => {
+  hidePopover();
+  defaultPrev();
+};
+
+function setupView() {
+  const view = document.querySelector(".fc-view") as HTMLElement;
+  view?.addEventListener("", () => true);
+  const classList = view?.classList;
+  classList?.add("relative");
+  classList?.add("overflow-hidden");
+  view?.append(popover_el);
+}
+
+const defaultChangeView = calendar.changeView.bind(calendar);
+calendar.changeView = (...args) => {
+  hidePopover();
+  defaultChangeView(...args);
+  setupView();
+};
+
+groupSelectEl.addEventListener("change", ({ target }) => {
+  calendar.removeAllEventSources();
+  const url = `http://localhost:5000/events/${groupSelectEl.selectedOptions[0].value}`;
+  console.log(url);
+  calendar.addEventSource({
+    url,
+    extraParams: ["notes", "type", "type_display", "rooms"],
+  });
+  calendar.refetchEvents();
+  calendar.render();
+});
+
+calendar.render();
