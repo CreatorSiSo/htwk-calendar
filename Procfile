@@ -1,1 +1,1 @@
-web: ./server/target/release/htwk-calendar
+web: ./target/release/htwk-calendar
