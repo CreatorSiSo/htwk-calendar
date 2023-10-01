@@ -1,5 +1,12 @@
-use axum::Json;
+use std::{
+	sync::{Arc, RwLock},
+	time::{Duration, Instant},
+};
+
+use axum::{extract::State, Json};
 use tracing::debug;
+
+use crate::Cache;
 
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 pub struct Study {
@@ -46,7 +53,13 @@ pub struct Group {
 }
 
 #[axum::debug_handler]
-pub async fn all() -> Result<Json<Vec<Faculty>>, String> {
+pub async fn all(State(cache): State<Arc<RwLock<Cache>>>) -> Result<Json<Vec<Faculty>>, String> {
+	if let Some((instant, faculties)) = &cache.read().unwrap().faculties {
+		if instant.elapsed() < Duration::from_secs(60 * 30 /* 30 minutes */) {
+			return Ok(Json(faculties.clone()));
+		}
+	}
+
 	let faculties = scrape(crate::URL_FACULTIES)
 		.await
 		.map_err(|err| format!("Unable to scrape faculties.\n\nInternal error: {err}"))?;
@@ -111,6 +124,7 @@ pub async fn all() -> Result<Json<Vec<Faculty>>, String> {
 		})
 		.collect();
 
+	cache.write().unwrap().faculties = Some((Instant::now(), faculties.clone()));
 	Ok(Json(faculties))
 }
 

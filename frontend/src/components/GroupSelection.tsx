@@ -2,7 +2,7 @@ import { Component, createRef } from "preact";
 import { allSubjects, type Subject } from "../scripts/faculties";
 import { signal, type Signal } from "@preact/signals";
 
-const subjects = await allSubjects(import.meta.env.SITE + "/faculties");
+const subjects = await allSubjects(import.meta.env.SITE + "/api/faculties");
 const subject: Signal<Subject | undefined> = signal(undefined);
 
 function updateSubject(selectEl: HTMLSelectElement) {
