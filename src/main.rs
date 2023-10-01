@@ -2,6 +2,7 @@
 
 use axum::{extract::Path, Json, Router};
 use std::net::SocketAddr;
+use tower_http::services;
 use tower_http::trace::TraceLayer;
 use tracing::{debug, info, Level};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
@@ -47,6 +48,7 @@ async fn main() -> color_eyre::Result<()> {
 	// let events_cache: HashMap<String, Vec<Event>> = HashMap::new();
 
 	let routes = Router::new()
+		.nest_service("/", services::ServeDir::new("frontend/dist"))
 		.route("/faculties", axum::routing::get(faculties::all))
 		.route("/events/:group", axum::routing::get(events_of_group))
 		.route(

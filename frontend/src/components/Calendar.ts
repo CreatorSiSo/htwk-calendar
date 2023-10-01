@@ -144,7 +144,9 @@ const groupSelectEl = document.querySelector(
 ) as HTMLSelectElement;
 groupSelectEl.addEventListener("change", () => {
   calendar.removeAllEventSources();
-  const url = `http://localhost:5000/events/${groupSelectEl.selectedOptions[0].value}`;
+  const url = `${import.meta.env.SITE}/events/${
+    groupSelectEl.selectedOptions[0].value
+  }`;
   console.log(url);
   calendar.addEventSource({
     url,
