@@ -11,10 +11,12 @@
     "astro": "astro"
   },
   "dependencies": {
+    "@astrojs/preact": "^3.0.0",
     "@astrojs/tailwind": "^5.0.0",
     "@floating-ui/dom": "^1.5.3",
     "astro": "^3.1.4",
     "fullcalendar": "^6.1.9",
+    "preact": "^10.18.1",
     "tailwindcss": "^3.3.3"
   },
   "devDependencies": {
