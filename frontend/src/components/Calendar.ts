@@ -61,9 +61,9 @@ const calendar = new Calendar(calendar_el, {
   height: "100%",
   initialView: "multiMonthYear",
   headerToolbar: {
-    left: "multiMonthYear,dayGridMonth,timeGridWeek,timeGridDay",
+    left: "prev,next today",
     center: "title",
-    right: "today prev,next",
+    right: "multiMonthYear,dayGridMonth,timeGridWeek,timeGridDay",
   },
   locales: [de],
   locale: "de",

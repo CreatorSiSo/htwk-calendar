@@ -25,7 +25,7 @@ class SubjectSelect extends Component {
         ref={this.ref}
         name="subject"
         id="subject_select"
-        class="w-full px-4 py-2 rounded-md text-white bg-slate-700"
+        class="w-full px-4 py-2 rounded-md text-white bg-slate-700 "
         onChange={(event) => {
           updateSubject(event.currentTarget);
         }}

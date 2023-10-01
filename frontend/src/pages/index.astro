@@ -31,6 +31,24 @@ import Layout from "../layouts/Layout.astro";
   .fc-event:hover {
     cursor: pointer;
   }
+
+  .fc-header-toolbar {
+    padding-inline: 0.5rem;
+    margin-bottom: 1rem !important;
+  }
+
+  @media (max-width: 768px) {
+    .fc-toolbar-chunk:nth-of-type(2) {
+      display: none !important;
+    }
+  }
+
+  @media (max-width: 445px) {
+    .fc-header-toolbar {
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+  }
 </style>
 
 <script>
