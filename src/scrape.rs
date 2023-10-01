@@ -1,6 +1,5 @@
 use std::fmt::Display;
 
-use color_eyre::eyre;
 use htmlize::unescape;
 use table_extract::scraper::{ElementRef, Html, Selector};
 use table_extract::Table;
@@ -19,7 +18,7 @@ pub struct Event {
 	pub end: String,
 }
 
-pub async fn events(url: &str) -> eyre::Result<Vec<Event>> {
+pub async fn events(url: &str) -> color_eyre::Result<Vec<Event>> {
 	let raw_events = raw_events(url).await?;
 
 	Ok(raw_events
@@ -171,7 +170,7 @@ pub async fn raw_events(url: &str) -> color_eyre::Result<Vec<RawEvent>> {
 			table
 				.iter()
 				.skip(1)
-				.map(|row| -> eyre::Result<RawEvent> {
+				.map(|row| -> color_eyre::Result<RawEvent> {
 					let row = row.as_slice();
 
 					let event = RawEvent {
@@ -229,7 +228,7 @@ pub async fn raw_events(url: &str) -> color_eyre::Result<Vec<RawEvent>> {
 		.collect())
 }
 
-fn parse_time(string: &str) -> eyre::Result<Time> {
+fn parse_time(string: &str) -> color_eyre::Result<Time> {
 	let (hour, minute) = string.split_once(':').unwrap();
 	Ok(Time::from_hms(hour.parse()?, minute.parse()?, 0)?)
 }

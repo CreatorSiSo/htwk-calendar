@@ -1,7 +1,6 @@
 #![feature(iterator_try_collect, iterator_try_reduce)]
 
 use axum::{extract::Path, Json, Router};
-use color_eyre::eyre;
 use std::net::SocketAddr;
 use tower_http::trace::TraceLayer;
 use tracing::Level;
@@ -11,13 +10,20 @@ mod faculties;
 mod scrape;
 use scrape::Event;
 
+#[derive(Debug, serde::Deserialize)]
+struct Config {
+	port: u16,
+}
+
 const URL_FACULTIES: &str =
 	"https://stundenplan.htwk-leipzig.de/stundenplan/xml/public/semgrp_ss.xml";
 const URL_TEMPLATE: &str = "https://stundenplan.htwk-leipzig.de/ws/Berichte/Text-Listen;Studenten-Sets;name;{$group$}?template=sws_semgrp&weeks=1-100";
 
 #[tokio::main]
-async fn main() -> eyre::Result<()> {
+async fn main() -> color_eyre::Result<()> {
 	color_eyre::install()?;
+	dotenvy::dotenv()?;
+	let config: Config = envy::from_env()?;
 
 	// TODO cache events
 	// let events_cache: HashMap<String, Vec<Event>> = HashMap::new();
@@ -46,7 +52,7 @@ async fn main() -> eyre::Result<()> {
 		)
 		.layer(TraceLayer::new_for_http());
 
-	let addr = SocketAddr::from(([0, 0, 0, 0], 5000));
+	let addr = SocketAddr::from(([0, 0, 0, 0], config.port));
 	tracing::info!("Listening on {}", addr);
 	axum::Server::bind(&addr)
 		.serve(routes.into_make_service())
