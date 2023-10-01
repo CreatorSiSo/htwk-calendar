@@ -1,4 +1,5 @@
 use axum::Json;
+use tracing::debug;
 
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 pub struct Study {
@@ -115,6 +116,7 @@ pub async fn all() -> Result<Json<Vec<Faculty>>, String> {
 
 async fn scrape(url: &str) -> color_eyre::Result<Vec<Faculty>> {
 	let faculties_text = reqwest::get(url).await?.text().await?;
+	debug!("made HTTP get request");
 	let faculties = quick_xml::de::from_str::<Study>(&faculties_text)?.faculties;
 
 	Ok(faculties)

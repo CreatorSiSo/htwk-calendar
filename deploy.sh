@@ -6,7 +6,7 @@ echo "!dist/" >> .gitignore
 
 git add .
 git commit -m "Deploy"
-git push heroku deploy
+git push -f heroku deploy:main
 
 git checkout main
 git branch -D deploy

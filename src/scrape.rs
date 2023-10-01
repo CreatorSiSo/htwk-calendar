@@ -5,6 +5,7 @@ use table_extract::scraper::{ElementRef, Html, Selector};
 use table_extract::Table;
 use time::format_description::well_known::Iso8601;
 use time::{Date, PrimitiveDateTime, Time, Weekday};
+use tracing::debug;
 
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct Event {
@@ -157,6 +158,7 @@ impl Display for EventKind {
 
 pub async fn raw_events(url: &str) -> color_eyre::Result<Vec<RawEvent>> {
 	let html_text = reqwest::get(url).await?.text().await?;
+	debug!("made HTTP get request");
 	let html = Html::parse_document(&html_text);
 
 	Ok(html
