@@ -144,7 +144,6 @@ async fn events_of_group(
 		),
 		None => None,
 	};
-	info!("{start:?}, {end:?}");
 
 	let events = 'inner: {
 		if let Some((instant, events)) = cache.read().unwrap().group_events.get(&group) {
@@ -179,8 +178,6 @@ async fn events_of_group(
 			(Some(start), Some(end)) => event.end >= start && event.start <= end,
 		})
 		.collect();
-
-	info!("{}", events.len());
 
 	Ok(Json(events))
 }
