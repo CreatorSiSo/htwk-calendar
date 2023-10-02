@@ -8,7 +8,11 @@ module.exports = {
       xs: "445px",
       ...defaultTheme.screens,
     },
-    extend: {},
+    extend: {
+      fontFamily: {
+        mono: ['"Jetbrains Mono"', ...defaultTheme.fontFamily.mono],
+      },
+    },
   },
   plugins: [],
 };

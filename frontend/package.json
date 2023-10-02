@@ -14,9 +14,11 @@
     "@astrojs/preact": "^3.0.0",
     "@astrojs/tailwind": "^5.0.0",
     "@floating-ui/dom": "^1.5.3",
+    "@fontsource/jetbrains-mono": "^5.0.13",
     "@fullcalendar/react": "^6.1.9",
-    "astro": "^3.1.4",
+    "astro": "^3.2.2",
     "fullcalendar": "^6.1.9",
+    "lucide-preact": "^0.282.0",
     "preact": "^10.18.1",
     "tailwindcss": "^3.3.3"
   },
