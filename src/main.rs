@@ -1,4 +1,4 @@
-#![feature(iterator_try_collect, iterator_try_reduce)]
+#![feature(iterator_try_collect)]
 
 use axum::{
 	extract::{Path, State},

@@ -7,5 +7,5 @@ import preact from "@astrojs/preact";
 export default defineConfig({
   // site: "http://localhost:5000",
   site: "https://htwk-calendar-16672e5a5a3b.herokuapp.com",
-  integrations: [tailwind(), preact()],
+  integrations: [tailwind(), preact({ compat: true })],
 });
