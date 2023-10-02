@@ -20,8 +20,8 @@ export async function allFaculties(url: string) {
   return faculties;
 }
 
-export async function allSubjects(facultiesUrl: string) {
-  const faculties = await allFaculties(facultiesUrl);
-  const subjects = faculties.flatMap((faculty) => faculty.subjects);
-  return subjects;
+export async function allSubjects(url: string) {
+  const res = await fetch(url);
+  const faculties: Subject[] = await res.json();
+  return faculties;
 }

@@ -15,8 +15,10 @@ pub struct Event {
 	pub kind_display: String,
 	pub rooms: Vec<String>,
 	pub color: String,
-	pub start: String,
-	pub end: String,
+	#[serde(serialize_with = "serialize_date_time")]
+	pub start: PrimitiveDateTime,
+	#[serde(serialize_with = "serialize_date_time")]
+	pub end: PrimitiveDateTime,
 }
 
 pub async fn events(url: &str) -> color_eyre::Result<Vec<Event>> {
@@ -51,12 +53,8 @@ pub async fn events(url: &str) -> color_eyre::Result<Vec<Event>> {
 					kind: event.kind,
 					kind_display: event.kind.to_string(),
 					rooms: event.rooms.clone(),
-					start: PrimitiveDateTime::new(date, event.start)
-						.format(&Iso8601::DATE_TIME)
-						.unwrap(),
-					end: PrimitiveDateTime::new(date, event.end)
-						.format(&Iso8601::DATE_TIME)
-						.unwrap(),
+					start: PrimitiveDateTime::new(date, event.start),
+					end: PrimitiveDateTime::new(date, event.end),
 					color: event.kind.color().into(),
 				}
 			})
@@ -268,4 +266,16 @@ impl std::str::FromStr for Weeks {
 
 		return Ok(Weeks::Single(string.parse().unwrap()));
 	}
+}
+
+use serde::ser::Error as _;
+use serde::{Serialize, Serializer};
+fn serialize_date_time<S: Serializer>(
+	datetime: &PrimitiveDateTime,
+	serializer: S,
+) -> color_eyre::Result<S::Ok, S::Error> {
+	datetime
+		.format(&Iso8601::DATE_TIME)
+		.map_err(S::Error::custom)?
+		.serialize(serializer)
 }

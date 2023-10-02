@@ -1,22 +1,25 @@
 import { Component, createRef } from "preact";
 import { allSubjects, type Subject } from "../scripts/faculties";
 import { signal, type Signal } from "@preact/signals";
+import { subjects, subjectsMap } from "../scripts/state";
 
-const subjects = await allSubjects(import.meta.env.SITE + "/api/faculties");
 const subject: Signal<Subject | undefined> = signal(undefined);
 
-function updateSubject(selectEl: HTMLSelectElement) {
-  const newSubject = subjects.find(
-    (subject) => subject.id === selectEl.selectedOptions[0].id,
-  );
-  subject.value = newSubject;
+function getSubjectId(selectEl: HTMLSelectElement) {
+  const index = selectEl.selectedIndex;
+  const option = selectEl.options.item(index);
+  return option?.id ?? "";
+}
+
+function updateSubject(id: string) {
+  subject.value = subjectsMap.get(id);
 }
 
 class SubjectSelect extends Component {
   ref = createRef<HTMLSelectElement>();
 
   componentDidMount() {
-    this.ref.current && updateSubject(this.ref.current);
+    this.ref.current && updateSubject(getSubjectId(this.ref.current));
   }
 
   render() {
@@ -27,7 +30,7 @@ class SubjectSelect extends Component {
         id="subject_select"
         class="w-full px-4 py-2 rounded-md text-white bg-slate-700 "
         onChange={(event) => {
-          updateSubject(event.currentTarget);
+          updateSubject(getSubjectId(event.currentTarget));
         }}
       >
         {subjects.map(({ name, id }) => (
@@ -53,13 +56,9 @@ class GroupSelect extends Component {
         id="group_select"
         class="w-full px-4 py-2 rounded-md text-white bg-slate-700"
       >
-        {subject.value === undefined ? (
-          <option disabled>Bitte wähle einen Studiengang</option>
-        ) : (
-          subject.value.groups
-            .reverse()
-            .map(({ id }) => <option id={id}>{id}</option>)
-        )}
+        {subject.value?.groups
+          .reverse()
+          .map(({ id }) => <option id={id}>{id}</option>)}
       </select>
     );
   }

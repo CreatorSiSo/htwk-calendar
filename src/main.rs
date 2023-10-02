@@ -1,16 +1,18 @@
 #![feature(iterator_try_collect)]
 
 use axum::{
-	extract::{Path, State},
+	extract::{Path, Query, State},
+	http::StatusCode,
 	Json, Router,
 };
-use faculties::Faculty;
+use faculties::{Faculty, Subject};
 use std::{
 	collections::HashMap,
 	net::SocketAddr,
 	sync::{Arc, RwLock},
 	time::{Duration, Instant},
 };
+use time::{format_description::well_known::Iso8601, PrimitiveDateTime};
 use tower_http::services;
 use tower_http::trace::TraceLayer;
 use tracing::{debug, info, Level};
@@ -79,11 +81,8 @@ async fn main() -> color_eyre::Result<()> {
 
 	let api_routes = Router::new()
 		.route("/faculties", axum::routing::get(faculties::all))
+		.route("/subjects", axum::routing::get(subjects))
 		.route("/events/:group", axum::routing::get(events_of_group))
-		// .route(
-		// 	"/raw_events/:group",
-		// 	axum::routing::get(raw_events_of_group),
-		// )
 		.with_state(shared_cache);
 
 	let routes = Router::new()
@@ -101,27 +100,88 @@ async fn main() -> color_eyre::Result<()> {
 }
 
 #[axum::debug_handler]
-// TODO iso date range params
+async fn subjects(state: State<Arc<RwLock<Cache>>>) -> Result<Json<Vec<Subject>>, String> {
+	let faculties = faculties::all(state).await?.0;
+	Ok(Json(
+		faculties
+			.into_iter()
+			.flat_map(|faculty| faculty.subjects)
+			.collect(),
+	))
+}
+
+#[derive(Debug, serde::Deserialize)]
+struct TimeRange {
+	start: Option<String>,
+	end: Option<String>,
+}
+
+#[axum::debug_handler]
 async fn events_of_group(
 	Path(group): Path<String>,
+	Query(time_range): Query<TimeRange>,
 	State(cache): State<Arc<RwLock<Cache>>>,
-) -> Result<Json<Vec<Event>>, String> {
-	if let Some((instant, events)) = cache.read().unwrap().group_events.get(&group) {
-		if instant.elapsed() < Duration::from_secs(60 * 5 /* 5 minutes */) {
-			return Ok(Json(events.clone()));
+) -> Result<Json<Vec<Event>>, (StatusCode, String)> {
+	let start = match time_range.start {
+		Some(ref start) => Some(PrimitiveDateTime::parse(start, &Iso8601::DEFAULT).map_err(
+			|err| {
+				(
+					StatusCode::BAD_REQUEST,
+					format!("Invalid format for 'start' query parameter: {err}"),
+				)
+			},
+		)?),
+		None => None,
+	};
+	let end = match time_range.end {
+		Some(ref end) => Some(
+			PrimitiveDateTime::parse(end, &Iso8601::DEFAULT).map_err(|err| {
+				(
+					StatusCode::BAD_REQUEST,
+					format!("Invalid format for 'end' query parameter: {err}"),
+				)
+			})?,
+		),
+		None => None,
+	};
+	info!("{start:?}, {end:?}");
+
+	let events = 'inner: {
+		if let Some((instant, events)) = cache.read().unwrap().group_events.get(&group) {
+			if instant.elapsed() < Duration::from_secs(60 * 5 /* 5 minutes */) {
+				break 'inner events.clone();
+			}
 		}
-	}
 
-	let url = URL_TEMPLATE.replace("{$group$}", &group);
-	let events = scrape::events(&url).await.map_err(|err| {
-		format!("Unable to scrape timetable for {group}.\n\nInternal error: {err}")
-	})?;
+		let url = URL_TEMPLATE.replace("{$group$}", &group);
+		let events = scrape::events(&url).await.map_err(|err| {
+			(
+				StatusCode::INTERNAL_SERVER_ERROR,
+				format!("Unable to scrape timetable for '{group}': {err}"),
+			)
+		})?;
 
-	cache
-		.write()
-		.unwrap()
-		.group_events
-		.insert(group, (Instant::now(), events.clone()));
+		cache
+			.write()
+			.unwrap()
+			.group_events
+			.insert(group, (Instant::now(), events.clone()));
+
+		events
+	};
+
+	let events: Vec<_> = events
+		.into_iter()
+		.filter(|event| match (start, end) {
+			(None, None) => true,
+			(None, Some(end)) => event.end <= end,
+			(Some(start), None) => event.start >= start,
+			(Some(start), Some(end)) => event.end >= start && event.start <= end,
+		})
+		.collect();
+
+	info!("{}", events.len());
+
 	Ok(Json(events))
 }
 
