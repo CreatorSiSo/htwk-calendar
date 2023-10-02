@@ -14,7 +14,7 @@ use std::{
 use tower_http::services;
 use tower_http::trace::TraceLayer;
 use tracing::{debug, info, Level};
-use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
+use tracing_subscriber::{fmt, layer::SubscriberExt, util::SubscriberInitExt};
 
 mod faculties;
 mod scrape;
@@ -23,6 +23,14 @@ use scrape::Event;
 #[derive(Debug, serde::Deserialize)]
 struct Config {
 	port: u16,
+	formatting: Formatting,
+}
+
+#[derive(Debug, serde::Deserialize)]
+#[serde(rename_all = "lowercase")]
+enum Formatting {
+	Compact,
+	Pretty,
 }
 
 const URL_FACULTIES: &str =
@@ -37,27 +45,32 @@ pub struct Cache {
 
 #[tokio::main]
 async fn main() -> color_eyre::Result<()> {
-	{
-		color_eyre::install()?;
-
-		let filter = tracing_subscriber::filter::Targets::new()
-			.with_target("htwk_calendar", Level::DEBUG)
-			.with_target("tower_http::trace::make_span", Level::DEBUG)
-			.with_target("tower_http::trace::on_response", Level::TRACE)
-			.with_target("tower_http::trace::on_request", Level::TRACE)
-			.with_default(Level::INFO);
-
-		tracing_subscriber::registry()
-			.with(tracing_subscriber::fmt::layer())
-			.with(filter)
-			.init();
-	}
+	color_eyre::install()?;
 
 	match dotenvy::dotenv() {
 		Ok(path) => debug!("Loaded env variables from: {path:?}"),
 		Err(err) => debug!("When searching for .env file: {err}"),
 	}
 	let config: Config = envy::from_env()?;
+
+	{
+		let filter = tracing_subscriber::filter::Targets::new()
+			.with_targets([
+				("htwk_calendar", Level::DEBUG),
+				("tower_http::trace::make_span", Level::DEBUG),
+				("tower_http::trace::on_response", Level::TRACE),
+				("tower_http::trace::on_request", Level::TRACE),
+			])
+			.with_default(Level::INFO);
+
+		let registry = tracing_subscriber::registry().with(filter);
+		match config.formatting {
+			Formatting::Compact => registry
+				.with(fmt::layer().with_file(false).without_time())
+				.init(),
+			Formatting::Pretty => registry.with(fmt::layer().pretty().with_file(false)).init(),
+		}
+	}
 
 	let shared_cache = Arc::new(RwLock::new(Cache {
 		faculties: None,

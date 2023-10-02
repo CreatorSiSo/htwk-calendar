@@ -103,7 +103,8 @@ const calendar = new Calendar(calendar_el, {
     );
   },
   eventContent: ({ event, view }) => {
-    if (view.type === "multiMonthYear") return true;
+    if (view.type === "multiMonthYear" || view.type === "dayGridMonth")
+      return true;
 
     return {
       html: `<div class="flex flex-col box-border h-full max-w-full"><div class="flex-shrink-0 font-semibold truncate">${event.title}</div><div class="truncate">${event.extendedProps.notes}</div></div>`,
