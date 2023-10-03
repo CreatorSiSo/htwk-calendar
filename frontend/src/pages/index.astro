@@ -2,13 +2,13 @@
 import GroupSelection from "../components/GroupSelection";
 import Layout from "../layouts/Layout.astro";
 import Calendar from "../components/Calendar.tsx";
-import Overlay from "../components/Overlay";
+import Sidebar from "../components/Sidebar";
 import Backdrop from "../components/Backdrop";
 ---
 
 <Layout title="HTWK Stundenplan">
   <div class="h-full flex relative">
-    <Overlay client:load />
+    <Sidebar client:load />
 
     <div class="flex-grow flex flex-col">
       <Backdrop client:only />
@@ -58,3 +58,4 @@ import Backdrop from "../components/Backdrop";
     }
   }
 </style>
+ ../components/Sidebar.tsx

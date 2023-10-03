@@ -7,16 +7,15 @@ import {
 } from "preact";
 import { signal } from "@preact/signals";
 
-import type {
-  EventApi,
-  CalendarApi,
-  CalendarOptions,
-} from "@fullcalendar/core";
+import type { EventApi, CalendarOptions } from "@fullcalendar/core";
 import FullCalendar from "@fullcalendar/react";
 import de from "@fullcalendar/core/locales/de";
-import dayGridMonth from "@fullcalendar/daygrid";
+
+import listPlugin from "@fullcalendar/list";
+import dayGridPlugin from "@fullcalendar/daygrid";
 import multiMonthPlugin from "@fullcalendar/multimonth";
 import timeGridPlugin from "@fullcalendar/timegrid";
+import scrollGrid from "@fullcalendar/scrollgrid";
 
 import { ChevronLeft, ChevronRight, Menu, Square } from "lucide-preact";
 
@@ -55,15 +54,15 @@ const Button: FunctionComponent<JSX.HTMLAttributes<HTMLButtonElement>> = ({
   </button>
 );
 
-const title = signal("...");
+const headerTitle = signal("...");
 const CalendarHeader: FunctionComponent<{
   calendar: RefObject<FullCalendar>;
 }> = ({ calendar }) => (
   <nav class="flex justify-between items-center px-2">
-    <Button class="md:hidden" onClick={() => toggleSidebar()}>
+    <Button class="lg:hidden" onClick={() => toggleSidebar()}>
       <Menu size={26} />
     </Button>
-    <span class="text-lg font-bold">{title}</span>
+    <span class="text-lg font-bold">{headerTitle}</span>
     <div class="flex text-white">
       {/* TODO Add search function */}
       {/* <Button>
@@ -88,6 +87,25 @@ const CalendarHeader: FunctionComponent<{
   </nav>
 );
 
+function eventToStrings({ title, start, end, extendedProps }: EventApi) {
+  const startString = start
+    ? `${formatTwoDigits(start.getHours())}:${formatTwoDigits(
+        start.getMinutes(),
+      )}`
+    : "Unbekannt";
+  const endString = end
+    ? `${formatTwoDigits(end.getHours())}:${formatTwoDigits(end.getMinutes())}`
+    : "Unbekannt";
+
+  return {
+    title,
+    description: extendedProps.notes ?? "",
+    rooms: extendedProps.rooms?.join(", ") ?? "",
+    kind: extendedProps.kind_display ?? "Unbekannter Event Typ",
+    time: `${startString} - ${endString}`,
+  };
+}
+
 export default class Calendar extends Component {
   state = {};
   calendarRef = createRef<FullCalendar>();
@@ -95,7 +113,7 @@ export default class Calendar extends Component {
   // TODO This is cursed but I want to see a runtime error if something fails, not have to write tons of checks and make typescript happy
   popover_el: HTMLDivElement = undefined as any as HTMLDivElement;
 
-  showPopover({ title, start, end, extendedProps }: EventApi) {
+  showPopover(event: EventApi) {
     this.popover_el.classList.remove("hidden");
 
     const title_el = this.popover_el.querySelector("#title") as HTMLDivElement;
@@ -104,22 +122,13 @@ export default class Calendar extends Component {
     const kind_el = this.popover_el.querySelector("#kind") as HTMLDivElement;
     const time_el = this.popover_el.querySelector("#time") as HTMLDivElement;
 
-    title_el.textContent = title;
-    desc_el.textContent = extendedProps.notes ?? "";
-    rooms_el.textContent = (extendedProps.rooms ?? []).join(", ");
-    kind_el.textContent = extendedProps.kind_display ?? "Unbekannter Event Typ";
+    const { title, description, kind, rooms, time } = eventToStrings(event);
 
-    const startString = start
-      ? `${formatTwoDigits(start.getHours())}:${formatTwoDigits(
-          start.getMinutes(),
-        )}`
-      : "Unbekannt";
-    const endString = end
-      ? `${formatTwoDigits(end.getHours())}:${formatTwoDigits(
-          end.getMinutes(),
-        )}`
-      : "Unbekannt";
-    time_el.textContent = `${startString} - ${endString}`;
+    title_el.textContent = title;
+    desc_el.textContent = description;
+    rooms_el.textContent = rooms;
+    kind_el.textContent = kind;
+    time_el.textContent = time;
   }
   cleanupPopover: () => void = () => {};
   hidePopover() {
@@ -170,17 +179,39 @@ export default class Calendar extends Component {
   };
 
   eventContent: EventContentFn = ({ event, view }) => {
-    if (view.type === "multiMonthYear" || view.type === "dayGridMonth")
-      return true;
+    const { title, description, kind, rooms } = eventToStrings(event);
 
-    // this.calendarRef.current?.getApi().setOption("plugins", )
+    switch (view.type) {
+      case "multiMonthYear":
+      case "multiMonth":
+        return true;
 
-    return (
-      <div class="flex flex-col box-border h-full max-w-full">
-        <div class="flex-shrink-0 font-semibold truncate">{event.title}</div>
-        <div class="truncate">{event.extendedProps.notes}</div>
-      </div>
-    );
+      case "dayGridYear":
+      case "dayGridMonth":
+      case "dayGridWeek":
+        return true;
+
+      case "listYear":
+      case "listMonth":
+      case "listWeek":
+      case "listDay":
+        return (
+          <>
+            <div class="font-semibold">{title}</div>
+            <div>{description}</div>
+            <div class="mt-2">{kind}</div>
+            <div>{rooms}</div>
+          </>
+        );
+
+      default:
+        return (
+          <div class="flex flex-col box-border h-full max-w-full">
+            <div class="flex-shrink-0 font-semibold truncate">{title}</div>
+            <div class="truncate">{description}</div>
+          </div>
+        );
+    }
   };
 
   render() {
@@ -190,20 +221,28 @@ export default class Calendar extends Component {
       locale: "de",
       timeZone: "none",
       // weekends: false,
-      // allDaySlot: false,
-
-      plugins: [dayGridMonth, timeGridPlugin, multiMonthPlugin],
-      // initialView: "multiMonthYear",
-      initialView: "dayGridMonth",
-      // initialView: "timeGridWeek",
-      // initialView: "timeGridDay",
+      allDaySlot: false,
       headerToolbar: false,
+
+      plugins: [listPlugin, dayGridPlugin, timeGridPlugin, multiMonthPlugin],
+
+      // initialView: "listYear", // yes
+      // initialView: "multiMonthYear", // yes (slow)
+      // initialView: "dayGridYear", // no
+
+      initialView: "dayGridMonth", // yes (default)
+
+      // initialView: "dayGridWeek", // maybe
+      // initialView: "timeGridWeek", // yes
+
+      // initialView: "timeGridDay", // yes
 
       eventClick: this.eventClick,
       eventContent: this.eventContent,
 
       eventsSet: () => {
-        title.value = this.calendarRef.current?.getApi().view.title ?? "...";
+        headerTitle.value =
+          this.calendarRef.current?.getApi().view.title ?? "...";
       },
     };
 

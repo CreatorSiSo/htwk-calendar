@@ -44,6 +44,7 @@ export default function Settings() {
 
 const viewSignal = signal("dayGridMonth");
 const viewsData = [
+  ["listYear", ["Liste", CalendarList]],
   ["multiMonthYear", ["Jahr", CalendarYear]],
   ["dayGridMonth", ["Monat", CalendarMonth]],
   ["timeGridWeek", ["Woche", CalendarWeek]],
@@ -136,7 +137,7 @@ function CalendarWeek() {
   return (
     <div class="relative">
       <Calendar />
-      <div class="absolute top-[13px] left-[5px] h-[2px] w-[13px] rounded-sm bg-neutral-800"></div>
+      <div class="absolute top-[13px] left-[5px] h-[2px] w-[13px] rounded-sm bg-current"></div>
     </div>
   );
 }
@@ -145,7 +146,20 @@ function CalendarDay() {
   return (
     <div class="relative">
       <Calendar />
-      <div class="absolute top-[13px] left-[6px] h-[2px] w-[3px] rounded-full bg-neutral-800"></div>
+      <div class="absolute top-[13px] left-[6px] h-[2px] w-[3px] rounded-full bg-current"></div>
+    </div>
+  );
+}
+
+function CalendarList() {
+  return (
+    <div class="relative">
+      <Calendar />
+      <div class="absolute top-[12.6px] left-[6px] h-[2px] w-[3px] rounded-full bg-current"></div>
+      <div class="absolute top-[16.5px] left-[6px] h-[2px] w-[3px] rounded-full bg-current"></div>
+
+      <div class="absolute top-[12.6px] left-[11px] h-[2px] w-[7px] rounded-sm bg-current"></div>
+      <div class="absolute top-[16.5px] left-[11px] h-[2px] w-[7px] rounded-sm bg-current"></div>
     </div>
   );
 }
