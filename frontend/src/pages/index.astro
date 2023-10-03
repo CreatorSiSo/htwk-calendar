@@ -2,18 +2,19 @@
 import GroupSelection from "../components/GroupSelection";
 import Layout from "../layouts/Layout.astro";
 import Calendar from "../components/Calendar.tsx";
-import Sidebar from "../components/Sidebar";
-import Backdrop from "../components/Backdrop";
+import { Overlay, Backdrop } from "../components/Sidebar";
 ---
 
 <Layout title="HTWK Stundenplan">
-  <div class="h-full flex relative">
-    <Sidebar client:load />
+  <div
+    class="transition-transform motion-reduce:transition-none ease-in-out duration-250 h-full flex relative"
+  >
+    <Overlay client:only />
 
     <div class="flex-grow flex flex-col">
       <Backdrop client:only />
       <!-- <GroupSelection client:load /> -->
-      <Calendar client:load />
+      <Calendar client:only />
 
       <div
         class="z-50 max-w-sm top-0 left-0 px-4 py-3 absolute hidden shadow-md rounded-md bg-white text-sm"
@@ -58,4 +59,3 @@ import Backdrop from "../components/Backdrop";
     }
   }
 </style>
- ../components/Sidebar.tsx

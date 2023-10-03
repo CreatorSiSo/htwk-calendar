@@ -5,11 +5,10 @@ import {
   subject,
   subjects,
   subjectsMap,
-  toggleSidebar,
-  hideSidebar,
 } from "../scripts/state";
 import { signal } from "@preact/signals";
 import { Calendar, CalendarDays, CalendarRange } from "lucide-preact";
+import { hideSidebar } from "./Sidebar";
 
 function getAndSetActiveSubject(selectEl: HTMLSelectElement) {
   const option = selectEl.selectedOptions[0];
@@ -17,10 +16,9 @@ function getAndSetActiveSubject(selectEl: HTMLSelectElement) {
 }
 
 // TODO Toggle sidebar when resizing window
-
 export default function Settings() {
   return (
-    <div class="h-full p-4 flex flex-col justify-between text-neutral-800">
+    <div class="flex-grow p-4 pt-0 flex flex-col justify-between text-neutral-800">
       <div class="flex flex-col gap-4">
         <div class="flex flex-col">
           <label for="subject_select" class="mb-1">

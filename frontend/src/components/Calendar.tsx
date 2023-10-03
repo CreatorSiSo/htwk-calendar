@@ -6,6 +6,14 @@ import {
   type RefObject,
 } from "preact";
 import { signal } from "@preact/signals";
+import { ChevronLeft, ChevronRight, Menu, Square } from "lucide-preact";
+import {
+  autoUpdate,
+  computePosition,
+  offset,
+  flip,
+  shift,
+} from "@floating-ui/dom";
 
 import type { EventApi, CalendarOptions } from "@fullcalendar/core";
 import FullCalendar from "@fullcalendar/react";
@@ -15,18 +23,10 @@ import listPlugin from "@fullcalendar/list";
 import dayGridPlugin from "@fullcalendar/daygrid";
 import multiMonthPlugin from "@fullcalendar/multimonth";
 import timeGridPlugin from "@fullcalendar/timegrid";
-import scrollGrid from "@fullcalendar/scrollgrid";
 
-import { ChevronLeft, ChevronRight, Menu, Square } from "lucide-preact";
-
-import {
-  autoUpdate,
-  computePosition,
-  offset,
-  flip,
-  shift,
-} from "@floating-ui/dom";
-import { group, subject, calendarRef, toggleSidebar } from "../scripts/state";
+import { calendarRef } from "../scripts/state";
+import { IconButton } from "./Buttons";
+import { showSidebar } from "./Sidebar";
 
 type EventClickFn = CalendarOptions["eventClick"];
 type EventContentFn = CalendarOptions["eventContent"];
@@ -39,36 +39,21 @@ function formatTwoDigits(number: number): string {
   }
 }
 
-const Button: FunctionComponent<JSX.HTMLAttributes<HTMLButtonElement>> = ({
-  children,
-  class: classes,
-  ...props
-}) => (
-  <button
-    class={
-      "h-11 w-9 flex items-center justify-center text-neutral-800 " + classes
-    }
-    {...props}
-  >
-    {children}
-  </button>
-);
-
 const headerTitle = signal("...");
 const CalendarHeader: FunctionComponent<{
   calendar: RefObject<FullCalendar>;
 }> = ({ calendar }) => (
   <nav class="flex justify-between items-center px-2">
-    <Button class="lg:hidden" onClick={() => toggleSidebar()}>
+    <IconButton class="lg:hidden" onClick={() => showSidebar()}>
       <Menu size={26} />
-    </Button>
+    </IconButton>
     <span class="text-lg font-bold">{headerTitle}</span>
     <div class="flex text-white">
       {/* TODO Add search function */}
-      {/* <Button>
+      {/* <SquareButton>
           <Search size={24} />
-        </Button> */}
-      <Button
+        </SquareButton> */}
+      <IconButton
         class="relative"
         onClick={() => calendar.current?.getApi().today()}
       >
@@ -76,13 +61,13 @@ const CalendarHeader: FunctionComponent<{
           {new Date().getDay() + 1}
         </span>
         <Square size={26} />
-      </Button>
-      <Button onClick={() => calendar.current?.getApi().prev()}>
+      </IconButton>
+      <IconButton onClick={() => calendar.current?.getApi().prev()}>
         <ChevronLeft size={26} />
-      </Button>
-      <Button onClick={() => calendar.current?.getApi().next()}>
+      </IconButton>
+      <IconButton onClick={() => calendar.current?.getApi().next()}>
         <ChevronRight size={26} />
-      </Button>
+      </IconButton>
     </div>
   </nav>
 );
@@ -224,6 +209,7 @@ export default class Calendar extends Component {
       allDaySlot: false,
       headerToolbar: false,
 
+      // plugins,
       plugins: [listPlugin, dayGridPlugin, timeGridPlugin, multiMonthPlugin],
 
       // initialView: "listYear", // yes
