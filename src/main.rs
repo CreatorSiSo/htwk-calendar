@@ -13,8 +13,8 @@ use std::{
 	time::{Duration, Instant},
 };
 use time::{format_description::well_known::Iso8601, PrimitiveDateTime};
-use tower_http::{cors::AllowOrigin, trace::TraceLayer};
-use tower_http::{cors::CorsLayer, services};
+use tower_http::trace::TraceLayer;
+use tower_http::{compression::CompressionLayer, services};
 use tracing::{debug, info, Level};
 use tracing_subscriber::{fmt, layer::SubscriberExt, util::SubscriberInitExt};
 
@@ -89,6 +89,7 @@ async fn main() -> color_eyre::Result<()> {
 		.nest_service("/", services::ServeDir::new("frontend/dist"))
 		.nest("/api", api_routes)
 		// .layer(CorsLayer::new().allow_origin(AllowOrigin::any()))
+		.layer(CompressionLayer::new())
 		.layer(TraceLayer::new_for_http());
 
 	let addr = SocketAddr::from(([0, 0, 0, 0], config.port));

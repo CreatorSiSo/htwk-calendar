@@ -22,6 +22,13 @@ serde_repr = "0.1.16"
 table-extract = { git = "https://github.com/CreatorSiSo/table-extract.git", rev = "9ee22f66205607757be7b27559de83eb986069cf" }
 time = { version = "0.3.29", features = ["serde", "formatting", "parsing"] }
 tokio = { version = "1.32.0", features = ["full"] }
-tower-http = { version = "0.4.4", features = ["trace", "fs", "cors"] }
+tower-http = { version = "0.4.4", features = [
+	"trace",
+	"fs",
+	"cors",
+	"compression-gzip",
+	"compression-br",
+	"compression-zstd",
+] }
 tracing = "0.1.37"
 tracing-subscriber = "0.3.17"
