@@ -2,6 +2,7 @@ import { signal, computed, effect } from "@preact/signals";
 import { allSubjects, type Subject } from "./faculties";
 import type { RefObject } from "preact";
 import type FullCalendar from "@fullcalendar/react";
+import { useEffect } from "preact/hooks";
 
 export const calendarRef = signal<RefObject<FullCalendar>>({ current: null });
 
@@ -36,10 +37,11 @@ export const subjectDisplay = computed(() => {
 export const group = signal<string | undefined>(undefined);
 effect(() => {
   const calendar = calendarRef.value.current?.getApi();
-  if (!calendar || !group.value) return;
+  if (!calendar) return;
 
   calendar.removeAllEventSources();
-  const url = `${import.meta.env.SITE}/api/events/${group.value}`;
+  // TODO This causes the 404 responses
+  const url = `${import.meta.env.SITE}/api/events/${group.value ?? ""}`;
   console.log(url);
 
   calendar.addEventSource({
