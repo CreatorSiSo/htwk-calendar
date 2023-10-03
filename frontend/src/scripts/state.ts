@@ -34,14 +34,14 @@ export const subjectDisplay = computed(() => {
   };
 });
 
-export const group = signal<string | undefined>(undefined);
+export const group = signal<string>("___FIND SOLUTION___");
 effect(() => {
   const calendar = calendarRef.value.current?.getApi();
   if (!calendar) return;
 
   calendar.removeAllEventSources();
   // TODO This causes the 404 responses
-  const url = `${import.meta.env.SITE}/api/events/${group.value ?? ""}`;
+  const url = `${import.meta.env.SITE}/api/events/${group.value}`;
   console.log(url);
 
   calendar.addEventSource({
