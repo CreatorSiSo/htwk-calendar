@@ -33,10 +33,10 @@ export const subjectDisplay = computed(() => {
   };
 });
 
-export const group = signal("");
+export const group = signal<string | undefined>(undefined);
 effect(() => {
   const calendar = calendarRef.value.current?.getApi();
-  if (!calendar) return;
+  if (!calendar || !group.value) return;
 
   calendar.removeAllEventSources();
   const url = `${import.meta.env.SITE}/api/events/${group.value}`;
