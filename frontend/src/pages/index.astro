@@ -1,28 +1,35 @@
 ---
 import GroupSelection from "../components/GroupSelection";
 import Layout from "../layouts/Layout.astro";
-import { Calendar } from "../components/Calendar.tsx";
+import Calendar from "../components/Calendar.tsx";
+import Overlay from "../components/Overlay";
+import Backdrop from "../components/Backdrop";
 ---
 
 <Layout title="HTWK Stundenplan">
-  <div class="h-full flex flex-col">
-    <GroupSelection client:load />
-    <Calendar client:load />
+  <div class="h-full flex relative">
+    <Overlay client:load />
 
-    <div
-      class="z-50 max-w-sm top-0 left-0 px-4 py-3 absolute hidden shadow-md rounded-md bg-white text-sm"
-      id="popover"
-    >
-      <div class="flex gap-2 justify-between">
-        <span id="title" class="font-bold">Title</span>
-        <button id="close_btn" class="w-5 h-5">✕</button>
-      </div>
-      <div id="descr"></div>
+    <div class="flex-grow flex flex-col">
+      <Backdrop client:only />
+      <!-- <GroupSelection client:load /> -->
+      <Calendar client:load />
 
-      <div class="pt-2">
-        <div id="rooms"></div>
-        <div id="kind"></div>
-        <div id="time"></div>
+      <div
+        class="z-50 max-w-sm top-0 left-0 px-4 py-3 absolute hidden shadow-md rounded-md bg-white text-sm"
+        id="popover"
+      >
+        <div class="flex gap-2 justify-between">
+          <span id="title" class="font-bold">Title</span>
+          <button id="close_btn" class="w-5 h-5">✕</button>
+        </div>
+        <div id="descr"></div>
+
+        <div class="pt-2">
+          <div id="rooms"></div>
+          <div id="kind"></div>
+          <div id="time"></div>
+        </div>
       </div>
     </div>
   </div>
@@ -51,9 +58,3 @@ import { Calendar } from "../components/Calendar.tsx";
     }
   }
 </style>
-
-<script>
-  // document.addEventListener("DOMContentLoaded", () =>
-  //   import("../components/Calendar.ts"),
-  // );
-</script>

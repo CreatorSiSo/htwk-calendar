@@ -1,17 +1,24 @@
-import { Component, createRef } from "preact";
-import { PureComponent } from "preact/compat";
+import {
+  Component,
+  createRef,
+  type FunctionComponent,
+  type JSX,
+  type RefObject,
+} from "preact";
+import { signal } from "@preact/signals";
 
 import type {
   EventApi,
   CalendarApi,
   CalendarOptions,
 } from "@fullcalendar/core";
-import de from "@fullcalendar/core/locales/de";
-
 import FullCalendar from "@fullcalendar/react";
+import de from "@fullcalendar/core/locales/de";
 import dayGridMonth from "@fullcalendar/daygrid";
 import multiMonthPlugin from "@fullcalendar/multimonth";
 import timeGridPlugin from "@fullcalendar/timegrid";
+
+import { ChevronLeft, ChevronRight, Menu, Square } from "lucide-preact";
 
 import {
   autoUpdate,
@@ -20,6 +27,7 @@ import {
   flip,
   shift,
 } from "@floating-ui/dom";
+import { group, subject, calendarRef, toggleSidebar } from "../scripts/state";
 
 type EventClickFn = CalendarOptions["eventClick"];
 type EventContentFn = CalendarOptions["eventContent"];
@@ -32,7 +40,56 @@ function formatTwoDigits(number: number): string {
   }
 }
 
-export class Calendar extends Component {
+const Button: FunctionComponent<JSX.HTMLAttributes<HTMLButtonElement>> = ({
+  children,
+  class: classes,
+  ...props
+}) => (
+  <button
+    class={
+      "h-11 w-9 flex items-center justify-center text-neutral-800 " + classes
+    }
+    {...props}
+  >
+    {children}
+  </button>
+);
+
+const title = signal("...");
+const CalendarHeader: FunctionComponent<{
+  calendar: RefObject<FullCalendar>;
+}> = ({ calendar }) => (
+  <nav class="flex justify-between items-center px-2">
+    <Button class="md:hidden" onClick={() => toggleSidebar()}>
+      <Menu size={26} />
+    </Button>
+    <span class="text-lg font-bold">{title}</span>
+    <div class="flex text-white">
+      {/* TODO Add search function */}
+      {/* <Button>
+          <Search size={24} />
+        </Button> */}
+      <Button
+        class="relative"
+        onClick={() => calendar.current?.getApi().today()}
+      >
+        <span class="text-xs font-mono font-black absolute">
+          {new Date().getDay() + 1}
+        </span>
+        <Square size={26} />
+      </Button>
+      <Button onClick={() => calendar.current?.getApi().prev()}>
+        <ChevronLeft size={26} />
+      </Button>
+      <Button onClick={() => calendar.current?.getApi().next()}>
+        <ChevronRight size={26} />
+      </Button>
+    </div>
+  </nav>
+);
+
+export default class Calendar extends Component {
+  state = {};
   calendarRef = createRef<FullCalendar>();
 
   // TODO This is cursed but I want to see a runtime error if something fails, not have to write tons of checks and make typescript happy
@@ -76,61 +133,13 @@ export class Calendar extends Component {
       ?.querySelector("#close_btn")
       ?.addEventListener("click", () => this.hidePopover());
 
-    const calendar = this.calendarRef.current?.getApi() as CalendarApi;
-
-    const defaultNext = calendar.next.bind(calendar);
-    calendar.next = () => {
-      this.hidePopover();
-      defaultNext();
-    };
-
-    const defaultPrev = calendar.prev.bind(calendar);
-    calendar.prev = () => {
-      this.hidePopover();
-      defaultPrev();
-    };
-
-    const outerThis = this;
-    function setupView() {
-      const view = document.querySelector(".fc-view") as HTMLElement;
-      view?.addEventListener("", () => true);
-      const classList = view?.classList;
-      classList?.add("relative");
-      classList?.add("overflow-hidden");
-      view?.append(outerThis.popover_el);
-    }
-
-    const defaultChangeView = calendar.changeView.bind(calendar);
-    calendar.changeView = (...args) => {
-      this.hidePopover();
-      defaultChangeView(...args);
-      setupView();
-    };
-
-    const groupSelectEl = document.querySelector(
-      "#group_select",
-    ) as HTMLSelectElement;
-    groupSelectEl.addEventListener("change", () => {
-      calendar.removeAllEventSources();
-      const url = `${import.meta.env.SITE}/api/events/${
-        groupSelectEl.selectedOptions[0].value
-      }`;
-      console.log(url);
-      calendar.addEventSource({
-        url,
-        extraParams: ["notes", "type", "type_display", "rooms"],
-      });
-      calendar.refetchEvents();
-    });
+    calendarRef.value = this.calendarRef;
   }
 
   eventClick: EventClickFn = ({ event, el }) => {
     function onElementRemoved(element: Element, callback: () => void) {
       new MutationObserver(function (mutations, observer) {
-        console.log(document.body.contains(element));
-
         if (!document.body.contains(element)) {
-          console.log("removed");
           callback();
           observer.disconnect();
         }
@@ -164,6 +173,8 @@ export class Calendar extends Component {
     if (view.type === "multiMonthYear" || view.type === "dayGridMonth")
       return true;
 
+    // this.calendarRef.current?.getApi().setOption("plugins", )
+
     return (
       <div class="flex flex-col box-border h-full max-w-full">
         <div class="flex-shrink-0 font-semibold truncate">{event.title}</div>
@@ -178,19 +189,29 @@ export class Calendar extends Component {
       locales: [de],
       locale: "de",
       timeZone: "none",
+      // weekends: false,
+      // allDaySlot: false,
 
       plugins: [dayGridMonth, timeGridPlugin, multiMonthPlugin],
-      initialView: "multiMonthYear",
-      headerToolbar: {
-        left: "multiMonthYear,dayGridMonth,timeGridWeek,timeGridDay",
-        center: "title",
-        right: "today prev,next",
-      },
+      // initialView: "multiMonthYear",
+      initialView: "dayGridMonth",
+      // initialView: "timeGridWeek",
+      // initialView: "timeGridDay",
+      headerToolbar: false,
 
       eventClick: this.eventClick,
       eventContent: this.eventContent,
+
+      eventsSet: () => {
+        title.value = this.calendarRef.current?.getApi().view.title ?? "...";
+      },
     };
 
-    return <FullCalendar ref={this.calendarRef} {...options} />;
+    return (
+      <div class="h-full flex flex-col">
+        <CalendarHeader calendar={this.calendarRef} />
+        <FullCalendar ref={this.calendarRef} {...options} />
+      </div>
+    );
   }
 }

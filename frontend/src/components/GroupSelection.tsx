@@ -1,77 +1,16 @@
-import { Component, createRef } from "preact";
-import { allSubjects, type Subject } from "../scripts/faculties";
-import { signal, type Signal } from "@preact/signals";
-import { subjects, subjectsMap } from "../scripts/state";
-
-const subject: Signal<Subject | undefined> = signal(undefined);
-
-function getSubjectId(selectEl: HTMLSelectElement) {
-  const index = selectEl.selectedIndex;
-  const option = selectEl.options.item(index);
-  return option?.id ?? "";
-}
-
-function updateSubject(id: string) {
-  subject.value = subjectsMap.get(id);
-}
-
-class SubjectSelect extends Component {
-  ref = createRef<HTMLSelectElement>();
-
-  componentDidMount() {
-    this.ref.current && updateSubject(getSubjectId(this.ref.current));
-  }
-
-  render() {
-    return (
-      <select
-        ref={this.ref}
-        name="subject"
-        id="subject_select"
-        class="w-full px-4 py-2 rounded-md text-white bg-slate-700 "
-        onChange={(event) => {
-          updateSubject(getSubjectId(event.currentTarget));
-        }}
-      >
-        {subjects.map(({ name, id }) => (
-          <option id={id}>{name}</option>
-        ))}
-      </select>
-    );
-  }
-}
-
-class GroupSelect extends Component {
-  ref = createRef<HTMLSelectElement>();
-
-  componentDidUpdate() {
-    this.ref.current?.dispatchEvent(new Event("change"));
-  }
-
-  render() {
-    return (
-      <select
-        ref={this.ref}
-        name="group"
-        id="group_select"
-        class="w-full px-4 py-2 rounded-md text-white bg-slate-700"
-      >
-        {subject.value?.groups
-          .reverse()
-          .map(({ id }) => <option id={id}>{id}</option>)}
-      </select>
-    );
-  }
-}
+import { subjectDisplay } from "../scripts/state";
+import { Menu } from "lucide-preact";
 
 export default () => (
-  <div class="p-2 grid grid-cols-[auto_1fr] gap-2 md:flex md:gap-4">
-    <label for="subject_select">Studiengang</label>
-    <SubjectSelect />
-
-    <label for="group_select" class="text-center align-middle">
-      Seminargruppe
-    </label>
-    <GroupSelect />
-  </div>
+  <button class="m-2 px-2 py-3 border border-neutral-300 rounded-md gap-2 overflow-hidden flex items-center sm:hidden">
+    <Menu size={26} class="flex-shrink-0" />
+    <div class="flex flex-col items-start gap-1">
+      <span class="text-lg leading-none font-bold truncate">
+        {subjectDisplay.value.name}
+      </span>
+      <span class="text-xs leading-none font-semibold text-neutral-700 bg-transparent">
+        {subjectDisplay.value.degree}
+      </span>
+    </div>
+  </button>
 );
