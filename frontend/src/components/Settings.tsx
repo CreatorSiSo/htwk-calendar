@@ -6,9 +6,10 @@ import {
   subjects,
   subjectsMap,
 } from "../scripts/state";
-import { signal } from "@preact/signals";
+import { signal, effect } from "@preact/signals";
 import { Calendar, CalendarDays, CalendarRange } from "lucide-preact";
 import { hideSidebar } from "./Sidebar";
+import { getSearchParam, setSearchParam } from "../scripts/utils";
 
 function getAndSetActiveSubject(selectEl: HTMLSelectElement) {
   const option = selectEl.selectedOptions[0];
@@ -35,12 +36,11 @@ export default function Settings() {
         </div>
       </div>
 
-      <ViewSwitch />
+      <ViewSelect />
     </div>
   );
 }
 
-const viewSignal = signal("dayGridMonth");
 const viewsData = [
   ["listYear", ["Liste", CalendarList]],
   ["multiMonthYear", ["Jahr", CalendarYear]],
@@ -48,12 +48,18 @@ const viewsData = [
   ["timeGridWeek", ["Woche", CalendarWeek]],
   ["timeGridDay", ["Tag", CalendarDay]],
 ] as const;
+const viewSignal = signal(getSearchParam("view") ?? "dayGridMonth");
+effect(() => {
+  setSearchParam("view", viewSignal.value);
+  calendarRef.value.current?.getApi().changeView(viewSignal.value);
+});
+
 const setView = (view: string) => {
   viewSignal.value = view;
   console.debug(`Changing view to '${viewSignal.value}'`);
-  calendarRef.value.current?.getApi().changeView(viewSignal.value);
 };
-function ViewSwitch() {
+
+function ViewSelect() {
   return (
     <nav class="flex flex-col">
       {viewsData.map(([viewId, [name, CalendarIcon]]) => (
