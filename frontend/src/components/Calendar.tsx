@@ -64,6 +64,7 @@ const CalendarHeader: FunctionComponent<{
               block: "center",
               inline: "center",
             });
+            api?.today();
           } else {
             // TODO fix delay between clicking on button and the scroll to happening
             api?.today();
