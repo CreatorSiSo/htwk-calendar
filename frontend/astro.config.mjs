@@ -10,4 +10,17 @@ export default defineConfig({
   // site: "https://htwk-calendar-16672e5a5a3b.herokuapp.com",
   site: "https://calendar.htwk.app",
   integrations: [tailwind(), preact({ compat: true })],
+  vite: {
+    plugins: [],
+    build: {
+      rollupOptions: {
+        output: {
+          manualChunks: (path, meta) => {
+            if (path.includes("luxon")) return "luxon";
+            if (path.includes("fullcalendar")) return "fullcalendar";
+          },
+        },
+      },
+    },
+  },
 });

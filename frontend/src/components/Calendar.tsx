@@ -2,7 +2,6 @@ import {
   Component,
   createRef,
   type FunctionComponent,
-  type JSX,
   type RefObject,
 } from "preact";
 import { signal } from "@preact/signals";
@@ -18,12 +17,12 @@ import {
 import type { EventApi, CalendarOptions } from "@fullcalendar/core";
 import FullCalendar from "@fullcalendar/react";
 import de from "@fullcalendar/core/locales/de";
+import luxonPlugin from "@fullcalendar/luxon3";
 
 import listPlugin from "@fullcalendar/list";
 import dayGridPlugin from "@fullcalendar/daygrid";
 import multiMonthPlugin from "@fullcalendar/multimonth";
 import timeGridPlugin from "@fullcalendar/timegrid";
-import momentTimezonePlugin from "@fullcalendar/moment-timezone";
 
 import { calendarRef } from "../scripts/state";
 import { IconButton } from "./Buttons";
@@ -212,7 +211,7 @@ export default class Calendar extends Component {
 
       // plugins,
       plugins: [
-        momentTimezonePlugin,
+        luxonPlugin,
         listPlugin,
         dayGridPlugin,
         timeGridPlugin,

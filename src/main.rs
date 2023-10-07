@@ -86,25 +86,31 @@ async fn main() -> color_eyre::Result<()> {
 		group_events: HashMap::new(),
 	}));
 
-	let api_routes = Router::new()
-		.route("/subjects", axum::routing::get(subjects))
-		.route("/events/:group", axum::routing::get(events_of_group))
-		.with_state(shared_cache);
+	let routes = {
+		let api_routes = Router::new()
+			.route("/subjects", axum::routing::get(subjects))
+			.route("/events/:group", axum::routing::get(events_of_group))
+			.with_state(shared_cache);
 
-	let routes = Router::new()
-		.nest_service("/", services::ServeDir::new("frontend/dist"))
-		.nest("/api", api_routes)
-		.layer(
-			CorsLayer::new().allow_origin([
-				config.site.parse::<HeaderValue>().unwrap(),
-				"https://htwk-calendar-16672e5a5a3b.herokuapp.com"
-					.parse::<HeaderValue>()
-					.unwrap(),
-			]),
-		)
-		.layer(middleware::from_fn(redirect))
-		.layer(CompressionLayer::new())
-		.layer(TraceLayer::new_for_http());
+		let frontend_routes = Router::new()
+			.nest_service("/", services::ServeDir::new("frontend/dist"))
+			.layer(middleware::from_fn(cache_control));
+
+		Router::new()
+			.nest("/", frontend_routes)
+			.nest("/api", api_routes)
+			.layer(
+				CorsLayer::new().allow_origin([
+					config.site.parse::<HeaderValue>().unwrap(),
+					"https://htwk-calendar-16672e5a5a3b.herokuapp.com"
+						.parse::<HeaderValue>()
+						.unwrap(),
+				]),
+			)
+			.layer(middleware::from_fn(redirect))
+			.layer(CompressionLayer::new())
+			.layer(TraceLayer::new_for_http())
+	};
 
 	let addr = SocketAddr::from(([0, 0, 0, 0], config.port));
 	info!("Listening on {}", addr);
@@ -113,6 +119,15 @@ async fn main() -> color_eyre::Result<()> {
 		.await?;
 
 	Ok(())
+}
+
+/// Sets the `Cache-Control` for static assets
+async fn cache_control<B>(request: Request<B>, next: Next<B>) -> Response {
+	let mut response = next.run(request).await;
+	response
+		.headers_mut()
+		.insert("Cache-Control", "no-cache".parse().unwrap());
+	response
 }
 
 /// Redirects all requests to `CONFIG.host`

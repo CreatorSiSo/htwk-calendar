@@ -15,7 +15,7 @@
     "@astrojs/tailwind": "^5.0.0",
     "@floating-ui/dom": "^1.5.3",
     "@fontsource/jetbrains-mono": "^5.0.13",
-    "@fullcalendar/moment-timezone": "^6.1.9",
+    "@fullcalendar/luxon3": "^6.1.9",
     "@fullcalendar/react": "^6.1.9",
     "@fullcalendar/scrollgrid": "^6.1.9",
     "astro": "^3.2.2",
