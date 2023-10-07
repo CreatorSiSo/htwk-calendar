@@ -57,23 +57,9 @@ const CalendarHeader: FunctionComponent<{
         class="relative"
         onClick={() => {
           // TODO make scroll to work in list view if today has no events
+          // TODO fix delay between clicking on button and the scroll to happening
           const api = calendar.current?.getApi();
-          if (api?.getDate().getFullYear() === new Date().getFullYear()) {
-            document.querySelector(".fc-day-today")?.scrollIntoView({
-              behavior: "smooth",
-              block: "center",
-              inline: "center",
-            });
-            api?.today();
-          } else {
-            // TODO fix delay between clicking on button and the scroll to happening
-            api?.today();
-            document.querySelector(".fc-day-today")?.scrollIntoView({
-              behavior: "smooth",
-              block: "center",
-              inline: "center",
-            });
-          }
+          api?.today();
         }}
       >
         <span class="text-xs font-mono font-black absolute">
