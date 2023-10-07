@@ -14,6 +14,7 @@ pub struct Event {
 	pub kind: EventKind,
 	pub kind_display: String,
 	pub rooms: Vec<String>,
+	pub staff: Vec<String>,
 	pub color: String,
 	#[serde(serialize_with = "serialize_date_time")]
 	pub start: PrimitiveDateTime,
@@ -53,6 +54,7 @@ pub async fn events(url: &str) -> color_eyre::Result<Vec<Event>> {
 					kind: event.kind,
 					kind_display: event.kind.to_string(),
 					rooms: event.rooms.clone(),
+					staff: event.staff.clone(),
 					start: PrimitiveDateTime::new(date, event.start),
 					end: PrimitiveDateTime::new(date, event.end),
 					color: event.kind.color().into(),
@@ -68,6 +70,7 @@ pub struct RawEvent {
 	pub notes: String,
 	pub kind: EventKind,
 	pub rooms: Vec<String>,
+	pub staff: Vec<String>,
 	pub weekday: Weekday,
 	pub weeks: Weeks,
 	pub start: Time,
@@ -215,6 +218,11 @@ pub async fn raw_events(url: &str) -> color_eyre::Result<Vec<RawEvent>> {
 							"Sonntag" => Weekday::Sunday,
 							_ => panic!(),
 						},
+						staff: unescape(&row[5])
+							.trim()
+							.split('|')
+							.flat_map(|str| if str == "" { None } else { Some(str.into()) })
+							.collect(),
 						weeks: row[0].parse()?,
 						start: parse_time(&row[1])?,
 						end: parse_time(&row[2])?,

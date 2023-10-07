@@ -91,6 +91,7 @@ function eventToStrings({ title, start, end, extendedProps }: EventApi) {
     title,
     description: extendedProps.notes ?? "",
     rooms: extendedProps.rooms?.join(", ") ?? "",
+    staff: extendedProps.staff?.join(", ") ?? "",
     kind: extendedProps.kind_display ?? "Unbekannter Event Typ",
     time: `${startString} - ${endString}`,
   };
@@ -109,14 +110,17 @@ export default class Calendar extends Component {
     const title_el = this.popover_el.querySelector("#title") as HTMLDivElement;
     const desc_el = this.popover_el.querySelector("#descr") as HTMLDivElement;
     const rooms_el = this.popover_el.querySelector("#rooms") as HTMLDivElement;
+    const staff_el = this.popover_el.querySelector("#staff") as HTMLDivElement;
     const kind_el = this.popover_el.querySelector("#kind") as HTMLDivElement;
     const time_el = this.popover_el.querySelector("#time") as HTMLDivElement;
 
-    const { title, description, kind, rooms, time } = eventToStrings(event);
+    const { title, description, kind, rooms, staff, time } =
+      eventToStrings(event);
 
     title_el.textContent = title;
     desc_el.textContent = description;
     rooms_el.textContent = rooms;
+    staff_el.textContent = staff;
     kind_el.textContent = kind;
     time_el.textContent = time;
   }
@@ -135,7 +139,9 @@ export default class Calendar extends Component {
     calendarRef.value = this.calendarRef;
   }
 
-  eventClick: EventClickFn = ({ event, el }) => {
+  eventClick: EventClickFn = ({ event, el, view }) => {
+    if (view.type.includes("list")) return;
+
     function onElementRemoved(element: Element, callback: () => void) {
       new MutationObserver(function (mutations, observer) {
         if (!document.body.contains(element)) {
@@ -169,7 +175,7 @@ export default class Calendar extends Component {
   };
 
   eventContent: EventContentFn = ({ event, view }) => {
-    const { title, description, kind, rooms } = eventToStrings(event);
+    const { title, description, kind, rooms, staff } = eventToStrings(event);
 
     switch (view.type) {
       case "multiMonthYear":
@@ -189,8 +195,9 @@ export default class Calendar extends Component {
           <>
             <div class="font-semibold">{title}</div>
             <div>{description}</div>
-            <div class="mt-2">{kind}</div>
-            <div>{rooms}</div>
+            <div class="mt-2">{rooms}</div>
+            <div>{staff}</div>
+            <div>{kind}</div>
           </>
         );
 
