@@ -87,7 +87,6 @@ async fn main() -> color_eyre::Result<()> {
 	}));
 
 	let api_routes = Router::new()
-		.route("/faculties", axum::routing::get(faculties::all))
 		.route("/subjects", axum::routing::get(subjects))
 		.route("/events/:group", axum::routing::get(events_of_group))
 		.with_state(shared_cache);
@@ -135,12 +134,68 @@ async fn redirect<B>(request: Request<B>, next: Next<B>) -> Result<Response, Red
 #[axum::debug_handler]
 async fn subjects(state: State<Arc<RwLock<Cache>>>) -> Result<Json<Vec<Subject>>, String> {
 	let faculties = faculties::all(state).await?.0;
-	Ok(Json(
-		faculties
-			.into_iter()
-			.flat_map(|faculty| faculty.subjects)
-			.collect(),
-	))
+	let mut subjects: Vec<Subject> = faculties
+		.into_iter()
+		.flat_map(|faculty| faculty.subjects)
+		.collect();
+
+	struct Ext {
+		id: &'static str,
+		groups: &'static [&'static str],
+	}
+	let extensions = [
+		Ext {
+			id: "INB",
+			groups: &["23INB-1", "23INB-2", "23INB-3"],
+		},
+		Ext {
+			id: "MIB",
+			groups: &["23MIB-1", "23MIB-2"],
+		},
+		Ext {
+			id: "BIB",
+			groups: &[
+				"23BIB-1a", "23BIB-1b", "23BIB-2a", "23BIB-2b", "23BIB-3a", "23BIB-3b", "23BIB-4a",
+				"23BIB-4b",
+			],
+		},
+		Ext {
+			id: "SMB",
+			groups: &["23SMB"],
+		},
+		Ext {
+			id: "STB",
+			groups: &["23STB"],
+		},
+		Ext {
+			id: "MBB",
+			groups: &["23MBB-1", "23MBB-2"],
+		},
+		Ext {
+			id: "SBB",
+			groups: &["23SBB-1", "23SBB-2"],
+		},
+		Ext {
+			id: "IMB",
+			groups: &["23IMB"],
+		},
+		Ext {
+			id: "ARB",
+			groups: &["23ARB-1", "23ARB-2", "23ARB-3", "23ARB-4"],
+		},
+	];
+
+	for subject in &mut subjects {
+		let Some(ext) = extensions.iter().find(|ext| ext.id == subject.id) else {
+			continue;
+		};
+
+		subject
+			.groups
+			.extend(ext.groups.iter().map(|group_id| (*group_id).into()));
+	}
+
+	Ok(Json(subjects))
 }
 
 #[derive(Debug, serde::Deserialize)]
