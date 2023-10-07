@@ -7,7 +7,6 @@ use axum::{
 	response::{Redirect, Response},
 	Json, Router,
 };
-use const_format::concatcp;
 use once_cell::sync::OnceCell;
 use std::{
 	collections::HashMap,
