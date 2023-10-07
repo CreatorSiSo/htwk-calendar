@@ -23,6 +23,7 @@ import listPlugin from "@fullcalendar/list";
 import dayGridPlugin from "@fullcalendar/daygrid";
 import multiMonthPlugin from "@fullcalendar/multimonth";
 import timeGridPlugin from "@fullcalendar/timegrid";
+import momentTimezonePlugin from "@fullcalendar/moment-timezone";
 
 import { calendarRef } from "../scripts/state";
 import { IconButton } from "./Buttons";
@@ -204,13 +205,19 @@ export default class Calendar extends Component {
       height: "100%",
       locales: [de],
       locale: "de",
-      timeZone: "none",
+      timeZone: "Europe/Berlin",
       // weekends: false,
       allDaySlot: false,
       headerToolbar: false,
 
       // plugins,
-      plugins: [listPlugin, dayGridPlugin, timeGridPlugin, multiMonthPlugin],
+      plugins: [
+        momentTimezonePlugin,
+        listPlugin,
+        dayGridPlugin,
+        timeGridPlugin,
+        multiMonthPlugin,
+      ],
 
       // initialView: "listYear", // yes
       // initialView: "multiMonthYear", // yes (slow)
