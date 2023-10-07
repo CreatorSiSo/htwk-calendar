@@ -7,7 +7,7 @@ use axum::{
 	response::{Redirect, Response},
 	Json, Router,
 };
-use faculties::{Faculty, Subject};
+use const_format::concatcp;
 use once_cell::sync::OnceCell;
 use std::{
 	collections::HashMap,
@@ -21,9 +21,10 @@ use tower_http::{compression::CompressionLayer, cors::CorsLayer, services};
 use tracing::{debug, info, Level};
 use tracing_subscriber::{fmt, layer::SubscriberExt, util::SubscriberInitExt};
 
-mod faculties;
-mod scrape;
-use scrape::Event;
+mod meta;
+use meta::Faculty;
+mod events;
+use events::Event;
 
 #[derive(Debug, Clone, serde::Deserialize)]
 struct Config {
@@ -43,7 +44,9 @@ enum Formatting {
 
 const URL_FACULTIES: &str =
 	"https://stundenplan.htwk-leipzig.de/stundenplan/xml/public/semgrp_ss.xml";
-const URL_TEMPLATE: &str = "https://stundenplan.htwk-leipzig.de/ws/Berichte/Text-Listen;Studenten-Sets;name;{$group$}?template=sws_semgrp&weeks=1-100";
+const URL_EVENTS: fn(&str) -> String = |group| {
+	format!("https://stundenplan.htwk-leipzig.de/ws/Berichte/Text-Listen;Studenten-Sets;name;{group}?template=sws_semgrp&weeks=1-100")
+};
 
 #[derive(Debug)]
 pub struct Cache {
@@ -88,7 +91,7 @@ async fn main() -> color_eyre::Result<()> {
 
 	let routes = {
 		let api_routes = Router::new()
-			.route("/subjects", axum::routing::get(subjects))
+			.route("/subjects", axum::routing::get(meta::subjects))
 			.route("/events/:group", axum::routing::get(events_of_group))
 			.with_state(shared_cache);
 
@@ -146,80 +149,12 @@ async fn redirect<B>(request: Request<B>, next: Next<B>) -> Result<Response, Red
 	Ok(next.run(request).await)
 }
 
-#[axum::debug_handler]
-async fn subjects(state: State<Arc<RwLock<Cache>>>) -> Result<Json<Vec<Subject>>, String> {
-	let faculties = faculties::all(state).await?.0;
-	let mut subjects: Vec<Subject> = faculties
-		.into_iter()
-		.flat_map(|faculty| faculty.subjects)
-		.collect();
-
-	struct Ext {
-		id: &'static str,
-		groups: &'static [&'static str],
-	}
-	let extensions = [
-		Ext {
-			id: "INB",
-			groups: &["23INB-1", "23INB-2", "23INB-3"],
-		},
-		Ext {
-			id: "MIB",
-			groups: &["23MIB-1", "23MIB-2"],
-		},
-		Ext {
-			id: "BIB",
-			groups: &[
-				"23BIB-1a", "23BIB-1b", "23BIB-2a", "23BIB-2b", "23BIB-3a", "23BIB-3b", "23BIB-4a",
-				"23BIB-4b",
-			],
-		},
-		Ext {
-			id: "SMB",
-			groups: &["23SMB"],
-		},
-		Ext {
-			id: "STB",
-			groups: &["23STB"],
-		},
-		Ext {
-			id: "MBB",
-			groups: &["23MBB-1", "23MBB-2"],
-		},
-		Ext {
-			id: "SBB",
-			groups: &["23SBB-1", "23SBB-2"],
-		},
-		Ext {
-			id: "IMB",
-			groups: &["23IMB"],
-		},
-		Ext {
-			id: "ARB",
-			groups: &["23ARB-1", "23ARB-2", "23ARB-3", "23ARB-4"],
-		},
-	];
-
-	for subject in &mut subjects {
-		let Some(ext) = extensions.iter().find(|ext| ext.id == subject.id) else {
-			continue;
-		};
-
-		subject
-			.groups
-			.extend(ext.groups.iter().map(|group_id| (*group_id).into()));
-	}
-
-	Ok(Json(subjects))
-}
-
 #[derive(Debug, serde::Deserialize)]
 struct TimeRange {
 	start: Option<String>,
 	end: Option<String>,
 }
 
-#[axum::debug_handler]
 async fn events_of_group(
 	Path(group): Path<String>,
 	Query(time_range): Query<TimeRange>,
@@ -255,8 +190,8 @@ async fn events_of_group(
 			}
 		}
 
-		let url = URL_TEMPLATE.replace("{$group$}", &group);
-		let events = scrape::events(&url).await.map_err(|err| {
+		let url = URL_EVENTS(&group);
+		let events = events::events(&url).await.map_err(|err| {
 			(
 				StatusCode::INTERNAL_SERVER_ERROR,
 				format!("Unable to scrape timetable for '{group}': {err}"),
@@ -284,14 +219,3 @@ async fn events_of_group(
 
 	Ok(Json(events))
 }
-
-// TODO add caching or get rid of RawEvent
-// #[axum::debug_handler]
-// async fn raw_events_of_group(Path(group): Path<String>) -> Result<Json<Vec<Event>>, String> {
-// 	let url = URL_TEMPLATE.replace("{$group$}", &group);
-// 	let raw_events = scrape::events(&url).await.map_err(|err| {
-// 		format!("Unable to scrape timetable for {group}.\n\nInternal error: {err}")
-// 	})?;
-
-// 	Ok(Json(raw_events))
-// }
