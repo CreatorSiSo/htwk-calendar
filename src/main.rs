@@ -2,10 +2,13 @@
 
 use axum::{
 	extract::{Path, Query, State},
-	http::StatusCode,
+	http::{HeaderValue, Request, StatusCode},
+	middleware::{self, Next},
+	response::{Redirect, Response},
 	Json, Router,
 };
 use faculties::{Faculty, Subject};
+use once_cell::sync::OnceCell;
 use std::{
 	collections::HashMap,
 	net::SocketAddr,
@@ -14,7 +17,7 @@ use std::{
 };
 use time::{format_description::well_known::Iso8601, PrimitiveDateTime};
 use tower_http::trace::TraceLayer;
-use tower_http::{compression::CompressionLayer, services};
+use tower_http::{compression::CompressionLayer, cors::CorsLayer, services};
 use tracing::{debug, info, Level};
 use tracing_subscriber::{fmt, layer::SubscriberExt, util::SubscriberInitExt};
 
@@ -22,13 +25,16 @@ mod faculties;
 mod scrape;
 use scrape::Event;
 
-#[derive(Debug, serde::Deserialize)]
+#[derive(Debug, Clone, serde::Deserialize)]
 struct Config {
 	port: u16,
 	formatting: Formatting,
+	site: String,
 }
 
-#[derive(Debug, serde::Deserialize)]
+static CONFIG: OnceCell<Config> = OnceCell::new();
+
+#[derive(Debug, Clone, Copy, serde::Deserialize)]
 #[serde(rename_all = "lowercase")]
 enum Formatting {
 	Compact,
@@ -54,6 +60,7 @@ async fn main() -> color_eyre::Result<()> {
 		Err(err) => debug!("When searching for .env file: {err}"),
 	}
 	let config: Config = envy::from_env()?;
+	CONFIG.set(config.clone()).unwrap();
 
 	{
 		let filter = tracing_subscriber::filter::Targets::new()
@@ -88,7 +95,15 @@ async fn main() -> color_eyre::Result<()> {
 	let routes = Router::new()
 		.nest_service("/", services::ServeDir::new("frontend/dist"))
 		.nest("/api", api_routes)
-		// .layer(CorsLayer::new().allow_origin(AllowOrigin::any()))
+		.layer(
+			CorsLayer::new().allow_origin([
+				config.site.parse::<HeaderValue>().unwrap(),
+				"https://htwk-calendar-16672e5a5a3b.herokuapp.com"
+					.parse::<HeaderValue>()
+					.unwrap(),
+			]),
+		)
+		.layer(middleware::from_fn(redirect))
 		.layer(CompressionLayer::new())
 		.layer(TraceLayer::new_for_http());
 
@@ -99,6 +114,22 @@ async fn main() -> color_eyre::Result<()> {
 		.await?;
 
 	Ok(())
+}
+
+/// Redirects all requests to `CONFIG.host`
+async fn redirect<B>(request: Request<B>, next: Next<B>) -> Result<Response, Redirect> {
+	if let Some(req_host) = request.headers().get("host") {
+		let expected_site = CONFIG.get().unwrap().site.clone();
+		let req_host = req_host.to_str().unwrap();
+
+		if !expected_site.contains(req_host) {
+			let redirect_url = expected_site + &request.uri().to_string();
+			info!("Redirecting from host {} to {}", req_host, redirect_url);
+			return Err(Redirect::permanent(&redirect_url));
+		}
+	}
+
+	Ok(next.run(request).await)
 }
 
 #[axum::debug_handler]
