@@ -52,6 +52,12 @@ pub struct Group {
 	pub id: String,
 }
 
+impl From<&'static str> for Group {
+	fn from(value: &'static str) -> Self {
+		Self { id: value.into() }
+	}
+}
+
 #[axum::debug_handler]
 pub async fn all(State(cache): State<Arc<RwLock<Cache>>>) -> Result<Json<Vec<Faculty>>, String> {
 	if let Some((instant, faculties)) = &cache.read().unwrap().faculties {
@@ -64,39 +70,68 @@ pub async fn all(State(cache): State<Arc<RwLock<Cache>>>) -> Result<Json<Vec<Fac
 		.await
 		.map_err(|err| format!("Unable to scrape faculties.\n\nInternal error: {err}"))?;
 
-	let extensions = vec![Faculty {
-		id: "FIMN".into(),
-		name: "Fakultät Informatik und Medien LFB Informatik".into(),
-		subjects: vec![
-			Subject {
-				id: "INB".into(),
-				name: "Informatik (Bachelor of Science)".into(),
+	let extensions = vec![
+		Faculty {
+			id: "FIMN".into(),
+			name: "Fakultät Informatik und Medien LFB Informatik".into(),
+			subjects: vec![
+				Subject {
+					id: "INB".into(),
+					name: "Informatik (Bachelor of Science)".into(),
+					groups: vec!["23INB-1".into(), "23INB-2".into(), "23INB-3".into()],
+				},
+				Subject {
+					id: "MIB".into(),
+					name: "Medieninformatik (Bachelor of Science)".into(),
+					groups: vec!["23MIB-1".into(), "23MIB-2".into()],
+				},
+			],
+		},
+		Faculty {
+			id: "FB".into(),
+			name: "Fakultät Bauwesen".into(),
+			subjects: vec![Subject {
+				id: "BIB".into(),
+				name: "Bauingenieurwesen (Bachelor of Engineering)".into(),
 				groups: vec![
-					Group {
-						id: "23INB-1".into(),
-					},
-					Group {
-						id: "23INB-2".into(),
-					},
-					Group {
-						id: "23INB-3".into(),
-					},
+					"23BIB-1a".into(),
+					"23BIB-1b".into(),
+					"23BIB-2a".into(),
+					"23BIB-2b".into(),
+					"23BIB-3a".into(),
+					"23BIB-3b".into(),
+					"23BIB-3a".into(),
+					"23BIB-3b".into(),
 				],
-			},
-			Subject {
-				id: "MIB".into(),
-				name: "Medieninformatik (Bachelor of Science)".into(),
-				groups: vec![
-					Group {
-						id: "23MIB-1".into(),
-					},
-					Group {
-						id: "23MIB-2".into(),
-					},
-				],
-			},
-		],
-	}];
+			}],
+		},
+		Faculty {
+			id: "FWW".into(),
+			name: "".into(),
+			subjects: vec![
+				Subject {
+					id: "SMB".into(),
+					name: "Wirtschaftsingenieurwesen Maschinenbau (Bachelor of Engineering)".into(),
+					groups: vec!["23SMB".into()],
+				},
+				Subject {
+					id: "STB".into(),
+					name: "Wirtschaftsingenieurwesen Elektrotechnik (Bachelor of Engineering)"
+						.into(),
+					groups: vec!["23STB".into()],
+				},
+			],
+		},
+		Faculty {
+			id: "FME".into(),
+			name: "Fakultät Ingenieurwissenschaften LFB Maschinenbau und Energietechnik".into(),
+			subjects: vec![Subject {
+				id: "MBB".into(),
+				name: "Maschinenbau (Bachelor of Engineering)".into(),
+				groups: vec!["23MBB-1".into(), "23MBB-2".into()],
+			}],
+		},
+	];
 
 	let faculties: Vec<_> = faculties
 		.into_iter()
@@ -112,7 +147,7 @@ pub async fn all(State(cache): State<Arc<RwLock<Cache>>>) -> Result<Json<Vec<Fac
 				let Some(extension_subject) = extension
 					.subjects
 					.iter()
-					.find(|extension_subject| *extension_subject == subject)
+					.find(|extension_subject| extension_subject.id == subject.id)
 				else {
 					continue;
 				};
