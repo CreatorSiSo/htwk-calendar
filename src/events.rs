@@ -1,11 +1,15 @@
-use std::fmt::Display;
-
+use crate::prelude::*;
+use axum::extract::{Path, Query, State};
 use htmlize::unescape;
-use table_extract::scraper::{ElementRef, Html, Selector};
-use table_extract::Table;
-use time::format_description::well_known::Iso8601;
-use time::{Date, PrimitiveDateTime, Time, Weekday};
-use tracing::debug;
+use std::{
+	fmt::Display,
+	time::{Duration, Instant},
+};
+use table_extract::{
+	scraper::{ElementRef, Html, Selector},
+	Table,
+};
+use time::{format_description::well_known::Iso8601, Date, PrimitiveDateTime, Time, Weekday};
 
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct Event {
@@ -20,6 +24,69 @@ pub struct Event {
 	pub start: PrimitiveDateTime,
 	#[serde(serialize_with = "serialize_date_time")]
 	pub end: PrimitiveDateTime,
+}
+
+#[derive(Debug, serde::Deserialize)]
+pub struct TimeRange {
+	start: Option<String>,
+	end: Option<String>,
+}
+
+pub async fn of_group(
+	Path(group): Path<String>,
+	Query(time_range): Query<TimeRange>,
+	State(cache): State<Arc<RwLock<Cache>>>,
+) -> Result<Json<Vec<Event>>, ErrorRes> {
+	let start = match time_range.start {
+		Some(ref start) => Some(
+			PrimitiveDateTime::parse(start, &Iso8601::DEFAULT)
+				.map_err(|err| bad_request("Invalid format for 'start' query parameter", err))?,
+		),
+		None => None,
+	};
+	let end = match time_range.end {
+		Some(ref end) => Some(
+			PrimitiveDateTime::parse(end, &Iso8601::DEFAULT)
+				.map_err(|err| bad_request("Invalid format for 'end' query parameter", err))?,
+		),
+		None => None,
+	};
+
+	let events = 'cached: {
+		if let Some((instant, events)) = cache.read().unwrap().group_events.get(&group) {
+			if instant.elapsed() < Duration::from_secs(60 * 60 /* 1 hour */) {
+				break 'cached events.clone();
+			}
+		}
+
+		let url = URL_EVENTS(&group);
+		let events = events(&url).await.map_err(|err| {
+			(
+				StatusCode::INTERNAL_SERVER_ERROR,
+				format!("Unable to scrape timetable for '{group}': {err}"),
+			)
+		})?;
+
+		cache
+			.write()
+			.unwrap()
+			.group_events
+			.insert(group, (Instant::now(), events.clone()));
+
+		events
+	};
+
+	let events: Vec<_> = events
+		.into_iter()
+		.filter(|event| match (start, end) {
+			(None, None) => true,
+			(None, Some(end)) => event.end <= end,
+			(Some(start), None) => event.start >= start,
+			(Some(start), Some(end)) => event.end >= start && event.start <= end,
+		})
+		.collect();
+
+	Ok(Json(events))
 }
 
 pub async fn events(url: &str) -> color_eyre::Result<Vec<Event>> {
@@ -61,7 +128,7 @@ pub async fn events(url: &str) -> color_eyre::Result<Vec<Event>> {
 				}
 			})
 		})
-		.collect::<Vec<_>>())
+		.collect())
 }
 
 #[derive(Debug, Clone, serde::Serialize)]
@@ -164,10 +231,9 @@ pub async fn raw_events(url: &str) -> color_eyre::Result<Vec<RawEvent>> {
 
 	Ok(html
 		.select(&Selector::parse("p > span.labelone").unwrap())
-		.into_iter()
-		.map(|day| {
-			let siblings = day.parent().unwrap().next_siblings();
-			let table_element = siblings.skip(1).next().unwrap();
+		.flat_map(|day| {
+			let mut siblings = day.parent().unwrap().next_siblings();
+			let table_element = siblings.nth(1).unwrap();
 			let table = Table::new(ElementRef::wrap(table_element).unwrap());
 
 			table
@@ -204,7 +270,6 @@ pub async fn raw_events(url: &str) -> color_eyre::Result<Vec<RawEvent>> {
 							_ => EventKind::Unknown,
 						},
 						rooms: unescape(&row[6])
-							.trim()
 							.split_whitespace()
 							.map(Into::into)
 							.collect(),
@@ -221,7 +286,13 @@ pub async fn raw_events(url: &str) -> color_eyre::Result<Vec<RawEvent>> {
 						staff: unescape(&row[5])
 							.trim()
 							.split('|')
-							.flat_map(|str| if str == "" { None } else { Some(str.into()) })
+							.flat_map(|str| {
+								if str.is_empty() {
+									None
+								} else {
+									Some(str.into())
+								}
+							})
 							.collect(),
 						weeks: row[0].parse()?,
 						start: parse_time(&row[1])?,
@@ -229,10 +300,9 @@ pub async fn raw_events(url: &str) -> color_eyre::Result<Vec<RawEvent>> {
 					};
 					Ok(event)
 				})
-				.try_collect::<Vec<RawEvent>>()
+				.map(|t| t.unwrap())
+				.collect::<Vec<RawEvent>>()
 		})
-		.map(|result| result.unwrap())
-		.flatten()
 		.collect())
 }
 
@@ -265,14 +335,14 @@ impl std::str::FromStr for Weeks {
 			));
 		}
 
-		if let Some((start, end)) = string.split_once("-") {
+		if let Some((start, end)) = string.split_once('-') {
 			return Ok(Weeks::Range {
 				start: start.parse().map_err(|_| end).unwrap(),
 				end: end.parse().map_err(|_| end).unwrap(),
 			});
 		}
 
-		return Ok(Weeks::Single(string.parse().unwrap()));
+		Ok(Weeks::Single(string.parse().unwrap()))
 	}
 }
 

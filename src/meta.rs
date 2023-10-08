@@ -1,10 +1,7 @@
-use crate::Cache;
-use axum::{extract::State, Json};
-use std::{
-	sync::{Arc, RwLock},
-	time::{Duration, Instant},
-};
-use tracing::debug;
+use crate::prelude::*;
+use axum::extract::State;
+use std::sync::{Arc, RwLock};
+use std::time::{Duration, Instant};
 
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 pub struct Study {
@@ -56,63 +53,50 @@ impl From<&'static str> for Group {
 	}
 }
 
-struct Ext {
-	id: &'static str,
-	groups: Vec<&'static str>,
-}
+pub async fn subjects(
+	State(cache): State<Arc<RwLock<Cache>>>,
+) -> Result<Json<Vec<Subject>>, ErrorRes> {
+	if let Some((instant, ref subjects)) = cache.read().unwrap().subjects {
+		if instant.elapsed() < Duration::from_secs(60 * 60 * 5 /* 5 hours */) {
+			return Ok(Json(subjects.clone()));
+		}
+	}
 
-pub async fn subjects(state: State<Arc<RwLock<Cache>>>) -> Result<Json<Vec<Subject>>, String> {
-	let faculties = cached_faculties(state).await?.0;
+	let faculties = scrape_faculties(crate::URL_FACULTIES)
+		.await
+		.map_err(|report| server_error("Unable to scrape faculties", report))?;
+
 	let mut subjects: Vec<Subject> = faculties
 		.into_iter()
 		.flat_map(|faculty| faculty.subjects)
 		.collect();
 
 	let extensions = parse_ext_groups_file();
-
 	for subject in &mut subjects {
-		let Some(ext) = extensions.iter().find(|ext| ext.id == subject.id) else {
+		let Some(ext_groups) = extensions.get(subject.id.as_str()) else {
 			continue;
 		};
 
 		subject
 			.groups
-			.extend(ext.groups.iter().map(|group_id| (*group_id).into()));
+			.extend(ext_groups.iter().map(|group| (*group).into()));
 	}
 
+	cache.write().unwrap().subjects = Some((Instant::now(), subjects.clone()));
 	Ok(Json(subjects))
 }
 
-fn parse_ext_groups_file() -> Vec<Ext> {
-	include_str!("../.groups")
-		.split("\n\n")
-		.map(|subject_data| {
-			let Some((id, groups)) = subject_data.split_once("\n") else {
-				panic!("{subject_data}");
-			};
-			Ext {
-				id,
-				groups: groups.lines().collect(),
-			}
-		})
-		.collect()
-}
+fn parse_ext_groups_file() -> HashMap<&'static str, Vec<&'static str>> {
+	let mut subject_map = HashMap::new();
 
-pub async fn cached_faculties(
-	State(cache): State<Arc<RwLock<Cache>>>,
-) -> Result<Json<Vec<Faculty>>, String> {
-	if let Some((instant, faculties)) = &cache.read().unwrap().faculties {
-		if instant.elapsed() < Duration::from_secs(60 * 30 /* 30 minutes */) {
-			return Ok(Json(faculties.clone()));
-		}
+	for subject_data in include_str!("../.groups").split("\n\n") {
+		let Some((id, groups)) = subject_data.split_once('\n') else {
+			panic!("{subject_data}");
+		};
+		subject_map.insert(id, groups.lines().collect::<Vec<&str>>());
 	}
 
-	let faculties = scrape_faculties(crate::URL_FACULTIES)
-		.await
-		.map_err(|err| format!("Unable to scrape faculties.\n\nInternal error: {err}"))?;
-
-	cache.write().unwrap().faculties = Some((Instant::now(), faculties.clone()));
-	Ok(Json(faculties))
+	subject_map
 }
 
 async fn scrape_faculties(url: &str) -> color_eyre::Result<Vec<Faculty>> {
