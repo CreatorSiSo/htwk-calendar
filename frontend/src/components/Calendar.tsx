@@ -63,7 +63,7 @@ const CalendarHeader: FunctionComponent<{
         }}
       >
         <span class="text-xs font-mono font-black absolute">
-          {new Date().getDay() + 1}
+          {new Date().getDate()}
         </span>
         <Square size={26} />
       </IconButton>
