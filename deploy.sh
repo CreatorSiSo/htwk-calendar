@@ -1,11 +1,24 @@
-cd frontend
-npm run build && (
+#!/bin/bash
+
+trap '' INT
+
+push() (
+	trap - INT
+	echo '--- pushing ---'
+
 	git checkout -b deploy
 	echo "!dist/" >> .gitignore
 
 	git add .
 	git commit -m "Deploy"
 	git push -f heroku deploy:main
-	git checkout main
-	git branch -D deploy
+
+	echo '--- finished pushing ---'
 )
+
+cd frontend
+npm run build && push
+
+echo '--- cleanup ---'
+git checkout main
+git branch -D deploy
