@@ -39,13 +39,13 @@ pub struct Cache {
 
 pub type ErrorRes = (StatusCode, String);
 
-pub fn bad_request<E: Display>(msg: &'static str, report: E) -> ErrorRes {
-	(StatusCode::BAD_REQUEST, format!("{msg}: {report}"))
+pub fn bad_request<M: Into<String>, E: Display>(msg: M, err: E) -> ErrorRes {
+	(StatusCode::BAD_REQUEST, format!("{}: {}", msg.into(), err))
 }
 
-pub fn server_error<E: Display>(msg: &'static str, report: E) -> ErrorRes {
+pub fn server_error<M: Into<String>, E: Display>(msg: M, err: E) -> ErrorRes {
 	(
 		StatusCode::INTERNAL_SERVER_ERROR,
-		format!("{msg}: {report}"),
+		format!("{}: {}", msg.into(), err),
 	)
 }

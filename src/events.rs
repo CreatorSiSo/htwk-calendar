@@ -61,10 +61,8 @@ pub async fn of_group(
 
 		let url = URL_EVENTS(&group);
 		let events = events(&url).await.map_err(|err| {
-			(
-				StatusCode::INTERNAL_SERVER_ERROR,
-				format!("Unable to scrape timetable for '{group}': {err}"),
-			)
+			// TODO this never happens (if a group does not exist a 404 should be returned)
+			server_error(&format!("Unable to scrape timetable for '{group}'"), err)
 		})?;
 
 		cache
@@ -225,7 +223,14 @@ impl Display for EventKind {
 }
 
 pub async fn raw_events(url: &str) -> color_eyre::Result<Vec<RawEvent>> {
-	let html_text = reqwest::get(url).await?.text().await?;
+	let res = reqwest::get(url).await?;
+	if res.status() == StatusCode::NOT_FOUND {
+		return Err(color_eyre::eyre::eyre!(
+			"Group not found: {}",
+			res.text().await?
+		));
+	}
+	let html_text = res.text().await?;
 	debug!("made HTTP get request");
 	let html = Html::parse_document(&html_text);
 
