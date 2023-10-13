@@ -53,7 +53,7 @@ impl From<&'static str> for Group {
 	}
 }
 
-pub async fn subjects(
+pub async fn subjects_all(
 	State(cache): State<Arc<RwLock<Cache>>>,
 ) -> Result<Json<Vec<Subject>>, ErrorRes> {
 	if let Some((instant, ref subjects)) = cache.read().unwrap().subjects {
@@ -66,38 +66,38 @@ pub async fn subjects(
 		.await
 		.map_err(|report| server_error("Unable to scrape faculties", report))?;
 
-	let mut subjects: Vec<Subject> = faculties
+	let subjects: Vec<Subject> = faculties
 		.into_iter()
 		.flat_map(|faculty| faculty.subjects)
 		.collect();
 
-	let extensions = parse_ext_groups_file();
-	for subject in &mut subjects {
-		let Some(ext_groups) = extensions.get(subject.id.as_str()) else {
-			continue;
-		};
+	// let extensions = parse_ext_groups_file();
+	// for subject in &mut subjects {
+	// 	let Some(ext_groups) = extensions.get(subject.id.as_str()) else {
+	// 		continue;
+	// 	};
 
-		subject
-			.groups
-			.extend(ext_groups.iter().map(|group| (*group).into()));
-	}
+	// 	subject
+	// 		.groups
+	// 		.extend(ext_groups.iter().map(|group| (*group).into()));
+	// }
 
 	cache.write().unwrap().subjects = Some((Instant::now(), subjects.clone()));
 	Ok(Json(subjects))
 }
 
-fn parse_ext_groups_file() -> HashMap<&'static str, Vec<&'static str>> {
-	let mut subject_map = HashMap::new();
+// fn parse_ext_groups_file() -> HashMap<&'static str, Vec<&'static str>> {
+// 	let mut subject_map = HashMap::new();
 
-	for subject_data in include_str!("../.groups").split("\n\n") {
-		let Some((id, groups)) = subject_data.split_once('\n') else {
-			panic!("{subject_data}");
-		};
-		subject_map.insert(id, groups.lines().collect::<Vec<&str>>());
-	}
+// 	for subject_data in include_str!("../.groups").split("\n\n") {
+// 		let Some((id, groups)) = subject_data.split_once('\n') else {
+// 			panic!("{subject_data}");
+// 		};
+// 		subject_map.insert(id, groups.lines().collect::<Vec<&str>>());
+// 	}
 
-	subject_map
-}
+// 	subject_map
+// }
 
 async fn scrape_faculties(url: &str) -> color_eyre::Result<Vec<Faculty>> {
 	let faculties_text = reqwest::get(url).await?.text().await?;

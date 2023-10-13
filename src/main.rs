@@ -52,7 +52,7 @@ async fn main() -> color_eyre::Result<()> {
 
 	let routes = {
 		let api_routes = Router::new()
-			.route("/subjects", axum::routing::get(meta::subjects))
+			.route("/subjects", axum::routing::get(meta::subjects_all))
 			.route("/events/:group", axum::routing::get(events::of_group))
 			.with_state(shared_cache);
 

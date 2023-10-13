@@ -25,8 +25,9 @@ pub enum FormattingOptions {
 
 pub static CONFIG: OnceCell<Config> = OnceCell::new();
 
+// TODO Automatically switch between summer and winter (ss/ws) semester
 pub const URL_FACULTIES: &str =
-	"https://stundenplan.htwk-leipzig.de/stundenplan/xml/public/semgrp_ss.xml";
+	"https://stundenplan.htwk-leipzig.de/stundenplan/xml/public/semgrp_ws.xml";
 pub const URL_EVENTS: fn(&str) -> String = |group| {
 	format!("https://stundenplan.htwk-leipzig.de/ws/Berichte/Text-Listen;Studenten-Sets;name;{group}?template=sws_semgrp&weeks=1-100")
 };
