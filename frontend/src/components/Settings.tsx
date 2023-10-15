@@ -1,39 +1,74 @@
-import { Component, createRef } from "preact";
 import {
   calendarRef,
-  group,
-  subject,
+  getGroup,
+  setGroup,
   subjects,
   subjectsMap,
 } from "../scripts/state";
-import { signal, effect } from "@preact/signals";
+import { effect, computed } from "@preact/signals";
 import { Calendar, CalendarDays, CalendarRange } from "lucide-preact";
 import { hideSidebar } from "./Sidebar";
-import { getSearchParam, setSearchParam } from "../scripts/utils";
+import { paramStore } from "../scripts/utils";
 
-function getAndSetActiveSubject(selectEl: HTMLSelectElement) {
-  const option = selectEl.selectedOptions[0];
-  subject.value = subjectsMap.get(option.id);
-}
+const subject = computed(() =>
+  subjects.find((subject) =>
+    subject.groups.some(({ selected }) => selected.value),
+  ),
+);
+
+export const subjectDisplay = computed(() => {
+  if (!subject.value) {
+    return {
+      long: "Unbekannt",
+      name: "Unbekannt",
+      degree: "Unbekannt",
+    };
+  }
+
+  const long = subject.value.name;
+  const [name, degree] = long.split("(", 2);
+  return {
+    long,
+    name: name.trim(),
+    degree: degree.replace(")", "").trim(),
+  };
+});
 
 // TODO Toggle sidebar when resizing window
 export default function Settings() {
   return (
-    <div class="flex-grow p-4 pt-0 flex flex-col justify-between text-neutral-800">
-      <div class="flex flex-col gap-4">
-        <div class="flex flex-col">
-          <label for="subject_select" class="mb-1">
-            Studiengang
-          </label>
-          <SubjectSelect />
-        </div>
+    <div class="flex-grow pt-0 flex flex-col justify-between text-neutral-800">
+      <div class="mx-2 flex flex-col gap-2">
+        {/* TODO Combined search/select */}
 
-        <div class="flex flex-col">
-          <label for="group_select" class="mb-1">
-            Seminargruppe
-          </label>
-          <GroupSelect />
-        </div>
+        <select
+          name="subject"
+          class="p-3 rounded-md font-semibold bg-neutral-300"
+          onChange={(event) => {
+            const newSubjectId = event.currentTarget.selectedOptions[0].value;
+            setGroup(subjectsMap.get(newSubjectId)?.groups[0].id);
+          }}
+        >
+          {subjects.map((elem) => (
+            <option value={elem.id} selected={elem.id === subject.value?.id}>
+              {elem.name}
+            </option>
+          ))}
+        </select>
+
+        <select
+          name="group"
+          class="p-3 rounded-md font-semibold bg-neutral-300"
+          onChange={(event) =>
+            setGroup(event.currentTarget.selectedOptions[0].value)
+          }
+        >
+          {subject.value?.groups.map((elem) => (
+            <option value={elem.id} selected={elem.id === getGroup()}>
+              {elem.id}
+            </option>
+          ))}
+        </select>
       </div>
 
       <ViewSelect />
@@ -48,9 +83,8 @@ const viewsData = [
   ["timeGridWeek", ["Woche", CalendarWeek]],
   ["timeGridDay", ["Tag", CalendarDay]],
 ] as const;
-const viewSignal = signal(getSearchParam("view") ?? "dayGridMonth");
+const viewSignal = paramStore("view", "dayGridMonth");
 effect(() => {
-  setSearchParam("view", viewSignal.value);
   calendarRef.value.current?.getApi().changeView(viewSignal.value);
 });
 
@@ -61,7 +95,7 @@ const setView = (view: string) => {
 
 function ViewSelect() {
   return (
-    <nav class="flex flex-col">
+    <nav class="p-4 flex flex-col">
       {viewsData.map(([viewId, [name, CalendarIcon]]) => (
         <button
           class={
@@ -79,54 +113,6 @@ function ViewSelect() {
       ))}
     </nav>
   );
-}
-
-class SubjectSelect extends Component {
-  ref = createRef<HTMLSelectElement>();
-
-  componentDidMount() {
-    this.ref.current && getAndSetActiveSubject(this.ref.current);
-  }
-
-  render() {
-    return (
-      <select
-        ref={this.ref}
-        name="subject"
-        id="subject_select"
-        class="w-full px-4 py-2 rounded-md bg-neutral-300 font-semibold"
-        onChange={({ currentTarget }) => getAndSetActiveSubject(currentTarget)}
-      >
-        {subjects.map(({ name, id }) => (
-          <option id={id}>{name}</option>
-        ))}
-      </select>
-    );
-  }
-}
-
-class GroupSelect extends Component {
-  ref = createRef<HTMLSelectElement>();
-
-  componentDidUpdate() {
-    this.ref.current?.dispatchEvent(new Event("change"));
-  }
-
-  render() {
-    return (
-      <select
-        ref={this.ref}
-        name="group"
-        id="group_select"
-        class="w-full px-4 py-2 rounded-md bg-neutral-300 font-semibold"
-        onChange={({ currentTarget }) => {
-          group.value = currentTarget.selectedOptions[0].id;
-        }}
-      >
-        {subject.value?.groups.map(({ id }) => <option id={id}>{id}</option>)}
-      </select>
-    );
-  }
 }
 
 function CalendarYear() {

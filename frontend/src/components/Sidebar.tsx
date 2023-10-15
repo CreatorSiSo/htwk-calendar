@@ -1,11 +1,10 @@
-import { Search } from "lucide-preact";
-import Settings from "./Settings";
-import { group, subjectDisplay } from "../scripts/state";
+import Settings, { subjectDisplay } from "./Settings";
+import { getGroup } from "../scripts/state";
 import { computed } from "@preact/signals";
 
 const subjectName = computed(() => subjectDisplay.value.name);
 const subjectGroupAndDegree = computed(
-  () => `${subjectDisplay.value.degree}, ${group.value.split("(")[0]}`,
+  () => `${subjectDisplay.value.degree}, ${getGroup()?.split("(")[0] ?? "..."}`,
 );
 
 const backdropClassList = () => document.querySelector("#backdrop")?.classList;

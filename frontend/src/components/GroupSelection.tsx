@@ -1,4 +1,4 @@
-import { subjectDisplay } from "../scripts/state";
+import { subjectDisplay } from "../components/Settings";
 import { Menu } from "lucide-preact";
 
 export default () => (

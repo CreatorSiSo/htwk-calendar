@@ -12,13 +12,13 @@ pub use tracing::{debug, error, info};
 #[derive(Debug, Clone, serde::Deserialize)]
 pub struct Config {
 	pub port: u16,
-	pub formatting: FormattingOptions,
+	pub formatting: Formatting,
 	pub site: String,
 }
 
 #[derive(Debug, Clone, Copy, serde::Deserialize)]
 #[serde(rename_all = "lowercase")]
-pub enum FormattingOptions {
+pub enum Formatting {
 	Compact,
 	Pretty,
 }

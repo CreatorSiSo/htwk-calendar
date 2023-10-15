@@ -36,12 +36,10 @@ async fn main() -> color_eyre::Result<()> {
 
 		let registry = tracing_subscriber::registry().with(filter);
 		match config.formatting {
-			FormattingOptions::Compact => registry
+			Formatting::Compact => registry
 				.with(fmt::layer().with_file(false).without_time())
 				.init(),
-			FormattingOptions::Pretty => {
-				registry.with(fmt::layer().pretty().with_file(false)).init()
-			}
+			Formatting::Pretty => registry.with(fmt::layer().pretty().with_file(false)).init(),
 		}
 	}
 

@@ -1,43 +1,23 @@
 import { signal, computed, effect } from "@preact/signals";
-import { allSubjects, type Subject } from "./faculties";
+import { allSubjects } from "./faculties";
 import type { RefObject } from "preact";
 import type FullCalendar from "@fullcalendar/react";
-import { useEffect } from "preact/hooks";
+import { paramStore } from "./utils";
 
 export const calendarRef = signal<RefObject<FullCalendar>>({ current: null });
 
-export const subjects = import.meta.env.SSR
-  ? []
-  : (await allSubjects(import.meta.env.SITE + "/api/subjects")).map(
-      (subject) => ({ ...subject, groups: subject.groups.toReversed() }),
-    );
-export const subjectsMap = new Map<string, Subject>(
-  subjects.map((subject) => [subject.id, subject]),
-);
+const group = paramStore("group", "23ARB-4");
 
-export const subject = signal<Subject | undefined>(undefined);
-export const subjectDisplay = computed(() => {
-  if (!subject.value) {
-    return {
-      long: "Unbekannt",
-      name: "Unbekannt",
-      degree: "Unbekannt",
-    };
-  }
+export const getGroup = () => group.value;
+export const setGroup = (value: string) => (group.value = value);
 
-  const long = subject.value.name;
-  const [name, degree] = long.split("(", 2);
-  return {
-    long,
-    name: name.trim(),
-    degree: degree.replace(")", "").trim(),
-  };
-});
-
-export const group = signal<string>("___FIND SOLUTION___");
 effect(() => {
+  console.log("group effect", group.value);
   const calendar = calendarRef.value.current?.getApi();
-  if (!calendar) return;
+  if (calendar === undefined || group.value === undefined) {
+    console.error("calendar", calendar, "group", group.value);
+    return;
+  }
 
   calendar.removeAllEventSources();
   // TODO This causes the 404 responses
@@ -50,3 +30,17 @@ effect(() => {
   });
   calendar.refetchEvents();
 });
+
+export const subjects = (
+  await allSubjects(import.meta.env.SITE + "/api/subjects")
+).map((subject) => ({
+  ...subject,
+  groups: subject.groups.toReversed().map((localGroup) => ({
+    id: localGroup.id,
+    selected: computed(() => group.value === localGroup.id),
+  })),
+}));
+
+export const subjectsMap = new Map(
+  subjects.map((subject) => [subject.id, subject]),
+);
