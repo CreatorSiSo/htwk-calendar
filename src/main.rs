@@ -43,16 +43,14 @@ async fn main() -> color_eyre::Result<()> {
 		}
 	}
 
-	let shared_cache = Arc::new(RwLock::new(Cache {
-		subjects: None,
-		group_events: HashMap::new(),
-	}));
+	let groups_cache = Arc::new(RwLock::new(HashMap::new()));
 
 	let routes = {
 		let api_routes = Router::new()
 			.route("/subjects", axum::routing::get(meta::subjects_all))
+			.with_state(meta::spawn_subjects_scraper().await?)
 			.route("/events/:group", axum::routing::get(events::of_group))
-			.with_state(shared_cache);
+			.with_state(groups_cache);
 
 		let frontend_routes = Router::new()
 			.nest_service("/", services::ServeDir::new("frontend/dist"))

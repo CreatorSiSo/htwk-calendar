@@ -35,7 +35,7 @@ pub struct TimeRange {
 pub async fn of_group(
 	Path(group): Path<String>,
 	Query(time_range): Query<TimeRange>,
-	State(cache): State<Arc<RwLock<Cache>>>,
+	State(cache): State<Arc<RwLock<HashMap<String, (Instant, Vec<Event>)>>>>,
 ) -> Result<Json<Vec<Event>>, ErrorRes> {
 	let start = match time_range.start {
 		Some(ref start) => Some(
@@ -53,7 +53,7 @@ pub async fn of_group(
 	};
 
 	let events = 'cached: {
-		if let Some((instant, events)) = cache.read().unwrap().group_events.get(&group) {
+		if let Some((instant, events)) = cache.read().unwrap().get(&group) {
 			if instant.elapsed() < Duration::from_secs(60 * 60 /* 1 hour */) {
 				break 'cached events.clone();
 			}
@@ -68,7 +68,6 @@ pub async fn of_group(
 		cache
 			.write()
 			.unwrap()
-			.group_events
 			.insert(group, (Instant::now(), events.clone()));
 
 		events

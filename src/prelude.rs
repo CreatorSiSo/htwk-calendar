@@ -1,6 +1,5 @@
-use crate::{events::Event, meta::Subject};
 use once_cell::sync::OnceCell;
-use std::{fmt::Display, time::Instant};
+use std::fmt::Display;
 
 pub use axum::{http::StatusCode, Json};
 pub use std::{
@@ -31,12 +30,6 @@ pub const URL_FACULTIES: &str =
 pub const URL_EVENTS: fn(&str) -> String = |group| {
 	format!("https://stundenplan.htwk-leipzig.de/ws/Berichte/Text-Listen;Studenten-Sets;name;{group}?template=sws_semgrp&weeks=1-100")
 };
-
-#[derive(Debug)]
-pub struct Cache {
-	pub subjects: Option<(Instant, Vec<Subject>)>,
-	pub group_events: HashMap<String, (Instant, Vec<Event>)>,
-}
 
 pub type ErrorRes = (StatusCode, String);
 

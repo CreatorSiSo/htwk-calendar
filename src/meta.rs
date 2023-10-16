@@ -1,7 +1,8 @@
-use crate::prelude::*;
+use crate::prelude::{self, *};
 use axum::extract::State;
 use std::sync::{Arc, RwLock};
 use std::time::{Duration, Instant};
+use tokio::sync::mpsc;
 
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 pub struct Study {
@@ -54,36 +55,18 @@ impl From<&'static str> for Group {
 }
 
 pub async fn subjects_all(
-	State(cache): State<Arc<RwLock<Cache>>>,
+	State((cache, sender)): State<(
+		Arc<RwLock<Option<(Instant, Vec<Subject>)>>>,
+		mpsc::Sender<()>,
+	)>,
 ) -> Result<Json<Vec<Subject>>, ErrorRes> {
-	if let Some((instant, ref subjects)) = cache.read().unwrap().subjects {
-		if instant.elapsed() < Duration::from_secs(60 * 60 * 5 /* 5 hours */) {
-			return Ok(Json(subjects.clone()));
-		}
+	sender.send(()).await.unwrap();
+
+	if let Some((_, ref subjects)) = *cache.read().unwrap() {
+		Ok(Json(subjects.clone()))
+	} else {
+		Err(server_error("Server not finished scraping subjects", ""))
 	}
-
-	let faculties = scrape_faculties(crate::URL_FACULTIES)
-		.await
-		.map_err(|report| server_error("Unable to scrape faculties", report))?;
-
-	let subjects: Vec<Subject> = faculties
-		.into_iter()
-		.flat_map(|faculty| faculty.subjects)
-		.collect();
-
-	// let extensions = parse_ext_groups_file();
-	// for subject in &mut subjects {
-	// 	let Some(ext_groups) = extensions.get(subject.id.as_str()) else {
-	// 		continue;
-	// 	};
-
-	// 	subject
-	// 		.groups
-	// 		.extend(ext_groups.iter().map(|group| (*group).into()));
-	// }
-
-	cache.write().unwrap().subjects = Some((Instant::now(), subjects.clone()));
-	Ok(Json(subjects))
 }
 
 // fn parse_ext_groups_file() -> HashMap<&'static str, Vec<&'static str>> {
@@ -99,10 +82,53 @@ pub async fn subjects_all(
 // 	subject_map
 // }
 
-async fn scrape_faculties(url: &str) -> color_eyre::Result<Vec<Faculty>> {
+pub async fn scrape_faculties(url: &str) -> color_eyre::Result<Vec<Faculty>> {
 	let faculties_text = reqwest::get(url).await?.text().await?;
 	debug!("made HTTP get request");
 	let faculties = quick_xml::de::from_str::<Study>(&faculties_text)?.faculties;
 
 	Ok(faculties)
+}
+
+type SubjectsCache = Arc<RwLock<Option<(Instant, Vec<Subject>)>>>;
+pub async fn spawn_subjects_scraper() -> color_eyre::Result<(SubjectsCache, mpsc::Sender<()>)> {
+	let (sender, mut receiver) = mpsc::channel::<()>(1);
+	sender.send(()).await?;
+	let cache = Arc::new(RwLock::new(None::<(Instant, Vec<Subject>)>));
+	let result = (Arc::clone(&cache), sender);
+
+	tokio::spawn(async move {
+		loop {
+			// Waiting for requests
+			let Some(_) = receiver.recv().await else {
+				panic!("Channel was closed")
+			};
+
+			if let Some((instant, _)) = *cache.read().unwrap() {
+				if instant.elapsed() < Duration::from_secs(1 /* 5 minutes */) {
+					// Cache is still valid start waiting for requests again
+					continue;
+				}
+			}
+
+			let faculties = match scrape_faculties(prelude::URL_FACULTIES).await {
+				Ok(faculties) => faculties,
+				Err(err) => {
+					error!("{err}");
+					continue;
+				}
+			};
+
+			let subjects = faculties
+				.into_iter()
+				.flat_map(|faculty| faculty.subjects)
+				.collect();
+
+			*cache.write().unwrap() = Some((Instant::now(), subjects));
+
+			info!("updated subjects cache");
+		}
+	});
+
+	Ok(result)
 }
